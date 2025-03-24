@@ -25,8 +25,7 @@ type Message struct {
 	// The primary content of the message (usually text)
 	Content string
 
-	// A list of base64-encoded images (for multimodal models such as llava
-	// or llama3.2-vision)
+	// A list of base64-encoded images (for multimodal models such as llava or llama3.2-vision)
 	Images []*Image
 
 	// Multiple tool calls

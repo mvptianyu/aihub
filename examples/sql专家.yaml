@@ -39,7 +39,5 @@ system_prompt: |
     AND o.status = 'paid'
     AND c.region = 'Asia'
   LIMIT 20;
-  -------------------------------------------------
-  用户输入请求是{{query}}
 assistant_prompt: |
   我是您忠实的SQL专家助手，有什么能帮助您？

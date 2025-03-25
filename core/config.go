@@ -13,9 +13,6 @@ type AgentConfig struct {
 	// 最大的会话记忆条数
 	MaxChatHistory int `json:"max_chat_history" yaml:"max_chat_history"`
 
-	// 强制结束前最大步数
-	MaxStopStep int `json:"max_stop_step" yaml:"max_stop_step"`
-
 	// 系统提示词
 	SystemPrompt string `json:"system_prompt" yaml:"system_prompt"`
 

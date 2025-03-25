@@ -12,34 +12,25 @@ import (
 type provider struct {
 	cfg *ProviderConfig
 
-	model *types.Model
-
 	// client is the internal Ollama HTTP client
 	client *client.OpenAIClient
 }
 
-func NewProvider(cfg *ProviderConfig) *provider {
+func (p *provider) CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (p *provider) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *CreateChatCompletionStream, err error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func NewProvider(cfg *ProviderConfig) IProvider {
 	ins := &provider{
 		cfg: cfg,
 	}
 	return ins
-}
-
-func (p *provider) GetCapabilities(ctx context.Context) (*types.Capabilities, error) {
-	slog.Info("Fetching capabilities")
-
-	// Placeholder for future implementation
-	slog.Info("GetCapabilities method is not implemented yet")
-
-	return nil, nil
-}
-
-func (p *provider) UseModel(ctx context.Context, model *types.Model) error {
-	slog.Info("Setting model", "modelID", model.ID)
-
-	p.model = model
-
-	return nil
 }
 
 // Generate implements the LLMProvider interface for basic responses

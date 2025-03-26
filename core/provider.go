@@ -2,66 +2,86 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/mvptianyu/aihub/providers/openai/client"
-	"github.com/mvptianyu/aihub/types"
-	"log/slog"
+	"golang.org/x/time/rate"
+	"io"
+	"net/http"
+	"net/url"
 )
+
+const chatCompletionsAPI = "/chat/completions"
 
 // LLM提供商
 type provider struct {
 	cfg *ProviderConfig
 
-	// client is the internal Ollama HTTP client
-	client *client.OpenAIClient
-}
-
-func (p *provider) CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (p *provider) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *CreateChatCompletionStream, err error) {
-	// TODO implement me
-	panic("implement me")
+	client  *http.Client
+	limiter *rate.Limiter
 }
 
 func NewProvider(cfg *ProviderConfig) IProvider {
 	ins := &provider{
-		cfg: cfg,
+		cfg:    cfg,
+		client: &http.Client{},
 	}
+	ins.limiter = rate.NewLimiter(rate.Limit(cfg.RateLimit), cfg.RateLimit)
 	return ins
 }
 
-// Generate implements the LLMProvider interface for basic responses
-func (p *provider) Generate(ctx context.Context, opts *types.GenerateOptions) (*types.Message, error) {
-	slog.Info("Generate request received", "modelID", p.model.ID)
-
-	resp, err := p.client.Chat(ctx, &client.ChatRequest{
-		Model:    p.model.ID,
-		Messages: opts.Messages,
-		Tools:    opts.Tools,
-	})
-
-	if err != nil {
-		p.logger.Error(err.Error(), "Error calling client chat method", err)
-		return nil, fmt.Errorf("error calling client chat method: %w", err)
+func (p *provider) CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error) {
+	if request.Stream {
+		request.Stream = false
+	}
+	if request.Model == "" {
+		request.Model = p.cfg.Model
 	}
 
-	return &types.Message{
-		Role:      types.AssistantMessageRole,
-		Content:   resp.Message.Content,
-		ToolCalls: resp.Message.ToolCalls,
-	}, nil
+	surl, _ := url.JoinPath(p.cfg.BaseURL, p.cfg.Version, chatCompletionsAPI)
+	headers := &http.Header{
+		"Content-Type": {"application/json"},
+	}
+	if p.cfg.APIKey != "" {
+		headers.Set("Authorization", fmt.Sprintf("Bearer %s", p.cfg.APIKey))
+	}
+
+	rsp, err1 := HTTPCall(surl, http.MethodPost, request, headers, HTTPWithTimeOut(30))
+	if err1 != nil {
+		err = err1
+		return
+	}
+
+	bs, _ := io.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	tmp := &CreateChatCompletionRsp{}
+	if err = json.Unmarshal(bs, tmp); err != nil {
+		return
+	}
+
+	response = tmp
+	return
 }
 
-// GenerateStream streams the response token by token
-func (p *provider) GenerateStream(ctx context.Context, opts *types.GenerateOptions) (<-chan *types.Message, <-chan string, <-chan error) {
-	p.logger.Info("Starting stream generation", "modelID", p.model.ID)
+func (p *provider) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *Stream[CreateChatCompletionRsp]) {
+	if request.Stream == false {
+		request.Stream = true
+	}
+	if request.Model == "" {
+		request.Model = p.cfg.Model
+	}
 
-	return p.client.ChatStream(ctx, &client.ChatRequest{
-		Model:    p.model.ID,
-		Messages: opts.Messages,
-		Tools:    opts.Tools,
-	})
+	surl, _ := url.JoinPath(p.cfg.BaseURL, p.cfg.Version, chatCompletionsAPI)
+	headers := &http.Header{
+		"Content-Type": {"application/json"},
+	}
+	if p.cfg.APIKey != "" {
+		headers.Set("Authorization", fmt.Sprintf("Bearer %s", p.cfg.APIKey))
+	}
+
+	rsp, err := HTTPCall(surl, http.MethodPost, request, headers, HTTPWithTimeOut(60))
+	if err != nil {
+		return
+	}
+
+	return NewStream[CreateChatCompletionRsp](NewDecoder(rsp), err)
 }

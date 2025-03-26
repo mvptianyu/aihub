@@ -10,10 +10,15 @@ import "encoding/json"
 type Message struct {
 	Content      string                `json:"-"`
 	MultiContent []*MessageContentPart `json:"-"`
-	messageInternal
+	Role         MessageRoleType       `json:"role"`
+	Name         string                `json:"name,omitempty"`
+	ToolCallID   string                `json:"tool_call_id,omitempty"` // Role=tool发出请求时携带之前由Role=assistant返回的ToolCallID
+	ToolCalls    []*MessageToolCall    `json:"tool_calls,omitempty"`   // Role=assistant返回的Message所带的ToolCalls
+	Refusal      string                `json:"refusal,omitempty"`
 }
 
-type messageInternal struct {
+type messageSingle struct {
+	Content    string             `json:"content,omitempty"`
 	Role       MessageRoleType    `json:"role"`
 	Name       string             `json:"name,omitempty"`
 	ToolCallID string             `json:"tool_call_id,omitempty"` // Role=tool发出请求时携带之前由Role=assistant返回的ToolCallID
@@ -21,14 +26,13 @@ type messageInternal struct {
 	Refusal    string             `json:"refusal,omitempty"`
 }
 
-type messageSingle struct {
-	messageInternal
-	Content string `json:"content,omitempty"`
-}
-
 type messageMulti struct {
+	Role         MessageRoleType       `json:"role"`
+	Name         string                `json:"name,omitempty"`
+	ToolCallID   string                `json:"tool_call_id,omitempty"` // Role=tool发出请求时携带之前由Role=assistant返回的ToolCallID
+	ToolCalls    []*MessageToolCall    `json:"tool_calls,omitempty"`   // Role=assistant返回的Message所带的ToolCalls
+	Refusal      string                `json:"refusal,omitempty"`
 	MultiContent []*MessageContentPart `json:"content,omitempty"`
-	messageInternal
 }
 
 func (m Message) MarshalJSON() ([]byte, error) {
@@ -37,15 +41,23 @@ func (m Message) MarshalJSON() ([]byte, error) {
 	}
 	if len(m.MultiContent) > 0 {
 		msg := messageMulti{
-			MultiContent:    m.MultiContent,
-			messageInternal: m.messageInternal,
+			MultiContent: m.MultiContent,
+			Role:         m.Role,
+			Name:         m.Name,
+			ToolCallID:   m.ToolCallID,
+			ToolCalls:    m.ToolCalls,
+			Refusal:      m.Refusal,
 		}
 		return json.Marshal(msg)
 	}
 
 	msg := messageSingle{
-		Content:         m.Content,
-		messageInternal: m.messageInternal,
+		Content:    m.Content,
+		Role:       m.Role,
+		Name:       m.Name,
+		ToolCallID: m.ToolCallID,
+		ToolCalls:  m.ToolCalls,
+		Refusal:    m.Refusal,
 	}
 	return json.Marshal(msg)
 }
@@ -53,13 +65,21 @@ func (m Message) MarshalJSON() ([]byte, error) {
 func (m *Message) UnmarshalJSON(bs []byte) error {
 	msg1 := &messageSingle{}
 	if err := json.Unmarshal(bs, &msg1); err == nil {
-		m.messageInternal = msg1.messageInternal
+		m.Role = msg1.Role
+		m.Name = msg1.Name
+		m.ToolCallID = msg1.ToolCallID
+		m.ToolCalls = msg1.ToolCalls
+		m.Refusal = msg1.Refusal
 		m.Content = msg1.Content
 		return nil
 	}
 	msg2 := &messageMulti{}
 	if err := json.Unmarshal(bs, &msg2); err == nil {
-		m.messageInternal = msg2.messageInternal
+		m.Role = msg2.Role
+		m.Name = msg2.Name
+		m.ToolCallID = msg2.ToolCallID
+		m.ToolCalls = msg2.ToolCalls
+		m.Refusal = msg2.Refusal
 		m.MultiContent = msg2.MultiContent
 		return nil
 	}

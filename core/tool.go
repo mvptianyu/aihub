@@ -21,13 +21,13 @@ type Tool struct {
 }
 
 type ToolFunction struct {
-	Name        string                  `json:"name"`
-	Description string                  `json:"description,omitempty"`
-	Parameters  *ToolFunctionParameters `json:"parameters,omitempty"`
-	Strict      bool                    `json:"strict,omitempty"`
+	Name        string                  `json:"name" yaml:"name"`
+	Description string                  `json:"description,omitempty" yaml:"name,omitempty"`
+	Parameters  *ToolFunctionParameters `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	Strict      bool                    `json:"strict,omitempty" yaml:"strict,omitempty"`
 
-	wrapToolFunc WrapToolFunc `json:"-"` // 执行入口
-	jsonSchema   []byte       `json:"-"` // 参数信息
+	wrapToolFunc WrapToolFunc `json:"-" yaml:"-"` // 执行入口
+	jsonSchema   []byte       `json:"-" yaml:"-"` // 参数信息
 }
 
 type ToolFunctionParametersType string
@@ -38,5 +38,7 @@ const (
 )
 
 type ToolFunctionParameters struct {
-	Type ToolFunctionParametersType `json:"type"`
+	Type       ToolFunctionParametersType `json:"type" yaml:"type"`
+	Properties map[string]interface{}     `json:"properties" yaml:"properties"`
+	Required   []string                   `json:"required" yaml:"required"`
 }

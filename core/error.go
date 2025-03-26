@@ -9,7 +9,7 @@ import "errors"
 
 var (
 	ErrUnknown                          = errors.New("unknown error")
-	ErrConfiguration                    = errors.New("invalid configuration")
+	ErrConfiguration                    = errors.New("invalid agent or provider configuration")
 	ErrToolRouterEmpty                  = errors.New("use tool but no tool router")
 	ErrAgentNotInit                     = errors.New("agent no init err")
 	ErrChatCompletionInvalidModel       = errors.New("model is not supported")

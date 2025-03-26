@@ -5,6 +5,8 @@
 */
 package core
 
+import "os"
+
 // AgentConfig agent配置结构
 type AgentConfig struct {
 	// LLM提供商配置
@@ -77,6 +79,11 @@ func (cfg *ProviderConfig) AutoFix() error {
 	}
 	if cfg.RateLimit <= 0 {
 		cfg.RateLimit = 50
+	}
+
+	if cfg.APIKey == "" {
+		// 取环境变量值
+		cfg.APIKey = os.Getenv("OPENAI_API_KEY")
 	}
 
 	if cfg.Name == "" || cfg.Model == "" || cfg.APIKey == "" || cfg.BaseURL == "" {

@@ -6,9 +6,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 )
 
 func Dispath(ctx context.Context, name string, in string) (out interface{}, err error) {
@@ -22,7 +25,15 @@ func Dispath(ctx context.Context, name string, in string) (out interface{}, err 
 }
 
 func GetWeather(ctx context.Context, in string) (out interface{}, err error) {
-	fmt.Println("===> GetWeather in: ", in)
+	fmt.Println("即将调用工具：GetWeather，参数为：" + in + "，输入 'OK' 继续:")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	userInput := scanner.Text()
+
+	if userInput != "OK" {
+		return "用户取消了退出", errors.New("用户取消了退出")
+	}
+
 	switch in {
 	case "深圳":
 		return "30度,天晴", nil

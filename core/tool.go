@@ -5,40 +5,26 @@
 */
 package core
 
-import "context"
+import (
+	"context"
+	"github.com/mvptianyu/aihub/jsonschema"
+)
 
-type WrapToolFunc func(ctx context.Context, in []byte) (out []byte, err error)
-
-type ToolType string
+type ToolFuncRouter func(ctx context.Context, name string, in string) (out interface{}, err error)
 
 const (
-	ToolTypeFunction ToolType = "function"
+	ToolTypeFunction         = "function"
+	ToolFunctionDefaultParam = "_INPUT_"
 )
 
 type Tool struct {
-	Type     ToolType     `json:"type"`
+	Type     string       `json:"type"`
 	Function ToolFunction `json:"function"`
 }
 
 type ToolFunction struct {
-	Name        string                  `json:"name" yaml:"name"`
-	Description string                  `json:"description,omitempty" yaml:"name,omitempty"`
-	Parameters  *ToolFunctionParameters `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	Strict      bool                    `json:"strict,omitempty" yaml:"strict,omitempty"`
-
-	wrapToolFunc WrapToolFunc `json:"-" yaml:"-"` // 执行入口
-	jsonSchema   []byte       `json:"-" yaml:"-"` // 参数信息
-}
-
-type ToolFunctionParametersType string
-
-const (
-	ToolFunctionParametersTypeText   ToolFunctionParametersType = "text"
-	ToolFunctionParametersTypeObject ToolFunctionParametersType = "object"
-)
-
-type ToolFunctionParameters struct {
-	Type       ToolFunctionParametersType `json:"type" yaml:"type"`
-	Properties map[string]interface{}     `json:"properties" yaml:"properties"`
-	Required   []string                   `json:"required" yaml:"required"`
+	Name        string                 `json:"name" yaml:"name"`
+	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
+	Parameters  *jsonschema.Definition `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	Strict      bool                   `json:"strict,omitempty" yaml:"strict,omitempty"`
 }

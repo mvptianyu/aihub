@@ -5,8 +5,6 @@
 */
 package core
 
-// TODO：参考：https://github.com/sashabaranov/go-openai.git
-
 // CreateChatCompletionReq 参见https://platform.openai.com/docs/api-reference/chat/create
 type CreateChatCompletionReq struct {
 	Messages         []*Message `json:"messages"`

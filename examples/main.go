@@ -2,27 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/mvptianyu/aihub"
-	"github.com/mvptianyu/aihub/core"
 )
 
 func main() {
 	ctx := context.Background()
 
-	//
-
 	// Create a new agent
-	myAgent := aihub.NewAgent(&core.AgentConfig{
-		Provider:     core.ProviderConfig{},
-		SystemPrompt: "You are a helpful assistant.",
-	})
+	myAgent := aihub.NewAgentWithYamlFile("E:\\goproj\\mvptianyu\\aihub\\examples\\demo.yaml")
+	myAgent.Init(Dispath)
 
-	msg, err := myAgent.RunStream(
+	msg, txt, err := myAgent.Run(
 		ctx,
-		"Why is the sky blue?",
+		"深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名",
 	)
-
-	for delta := range result.DeltaChan {
-		print(delta)
-	}
+	fmt.Println(msg, err)
+	fmt.Println("=======================")
+	fmt.Println(txt)
 }

@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 // NewAgent creates a new agent with the given provider
@@ -31,7 +32,7 @@ func NewAgentWithYamlData(yamlData []byte) core.IAgent {
 // NewAgentWithYamlFile 从配置文件读取
 func NewAgentWithYamlFile(yamlFile string) core.IAgent {
 	// 读取 YAML 文件内容
-	yamlData, err := os.ReadFile(yamlFile)
+	yamlData, err := os.ReadFile(filepath.Clean(yamlFile))
 	if err != nil {
 		log.Fatalf("Error reading YAML file: %s => %v\n", yamlFile, err)
 		return nil

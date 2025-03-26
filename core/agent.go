@@ -7,15 +7,20 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"github.com/mvptianyu/aihub/jsonschema"
+	"github.com/tidwall/gjson"
 	"sync"
 )
 
 type Agent struct {
-	cfg      *AgentConfig
-	provider IProvider
-	tools    map[string]*Tool
-	history  *history
+	cfg        *AgentConfig
+	provider   IProvider
+	tools      map[string]*Tool
+	history    *history
+	toolRouter ToolFuncRouter
+	inited     bool
 
 	lock sync.RWMutex
 }
@@ -32,19 +37,81 @@ func NewAgent(cfg *AgentConfig) IAgent {
 		history:  NewHistory(*cfg.MaxStoreHistory),
 	}
 
-	go ag.initTools()
 	return ag
 }
 
-func (a *Agent) initTools() {
-	if a.cfg.Tools == nil || len(a.cfg.Tools) == 0 {
+func (a *Agent) Init(router ToolFuncRouter) {
+	a.toolRouter = router
+
+	if a.inited {
 		return
 	}
 
+	// 先初始化工具
+	if err := a.initTools(); err != nil {
+		panic(err)
+	}
+
+	// 再初始化系统提示词
+	if err := a.initSystem(); err != nil {
+		panic(err)
+	}
+
+	a.inited = true
+}
+
+func (a *Agent) initSystem() error {
+	if a.cfg.SystemPrompt == "" {
+		return nil
+	}
+
+	sysMsg := &Message{
+		Role:    MessageRoleSystem,
+		Content: a.cfg.SystemPrompt,
+	}
+
+	ctx := context.Background()
+	req := &CreateChatCompletionReq{
+		Messages:         []*Message{sysMsg},
+		Tools:            a.ListTool(),
+		MaxTokens:        *a.cfg.MaxTokens,
+		FrequencyPenalty: *a.cfg.FrequencyPenalty,
+		PresencePenalty:  *a.cfg.PresencePenalty,
+		Temperature:      *a.cfg.Temperature,
+	}
+	rsp, err := a.provider.CreateChatCompletion(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	if rsp.Error != nil {
+		return errors.New(rsp.Error.Message)
+	}
+
+	a.history.SetSystemMsg(sysMsg)
+	return nil
+}
+
+func (a *Agent) initTools() error {
+	if a.cfg.Tools == nil || len(a.cfg.Tools) == 0 {
+		return nil
+	}
+
 	for _, toolFunction := range a.cfg.Tools {
+		if toolFunction.Name == "" {
+			continue
+		}
+
 		if toolFunction.Parameters == nil {
-			toolFunction.Parameters = &ToolFunctionParameters{
-				Type: ToolFunctionParametersTypeText,
+			toolFunction.Parameters = &jsonschema.Definition{
+				Type: jsonschema.Object,
+				Properties: map[string]jsonschema.Definition{
+					ToolFunctionDefaultParam: {
+						Type:        jsonschema.String,
+						Description: "tools's input parameter",
+					},
+				},
+				Required: []string{ToolFunctionDefaultParam},
 			}
 		}
 		if toolFunction.Description == "" {
@@ -56,23 +123,38 @@ func (a *Agent) initTools() {
 			Function: toolFunction,
 		})
 	}
+
+	if len(a.ListTool()) > 0 && a.toolRouter == nil {
+		return ErrToolRouterEmpty
+	}
+	return nil
 }
 
 // 重置对话
-func (a *Agent) Refresh(ctx context.Context) error {
+func (a *Agent) ResetHistory() error {
 	a.history.Clear()
 	return nil
 }
 
 func (a *Agent) Run(ctx context.Context, input string) (*Message, string, error) {
+	if !a.inited {
+		return nil, "", ErrAgentNotInit
+	}
+
 	userMsg := &Message{
 		Role:    MessageRoleUser,
 		Content: input,
 	}
 
 	a.history.Push(userMsg)
+	step := 0
 
 	for {
+		// 超过最大步数跳出
+		if step > *a.cfg.MaxStepQuit {
+			return nil, "", ErrChatCompletionOverMaxStep
+		}
+
 		req := &CreateChatCompletionReq{
 			Messages:         a.history.GetAll(*a.cfg.MaxUseHistory, a.cfg.SystemPrompt != ""),
 			Tools:            a.ListTool(),
@@ -93,23 +175,26 @@ func (a *Agent) Run(ctx context.Context, input string) (*Message, string, error)
 		choice := rsp.Choices[0]
 		a.history.Push(choice.Message)
 
-		// 处理tool
-		if choice.FinishReason == ChatCompletionRspFinishReasonToolCalls {
-			toolMsgs, err1 := a.processToolCalls(choice.Message.ToolCalls)
-			if err1 != nil {
-				return nil, "", err1
-			}
-
-			// todo: 再发Chat请求
-			a.history.Push(toolMsgs...)
+		// 正常跳出
+		if choice.FinishReason != ChatCompletionRspFinishReasonToolCalls {
+			return choice.Message, choice.Message.Content, nil
 		}
+
+		// 处理tool调用
+		toolMsgs, err1 := a.processToolCalls(ctx, choice.Message.ToolCalls)
+		if err1 != nil {
+			return nil, "", err1
+		}
+		a.history.Push(toolMsgs...)
+		step++ // 再次请求
 	}
-
-	return choice.Message, choice.Message.Content, err
-
 }
 
 func (a *Agent) RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error) {
+	if !a.inited {
+		return nil, nil, nil
+	}
+
 	// TODO implement me
 	panic("implement me")
 }
@@ -154,10 +239,10 @@ func (a *Agent) ListTool() []*Tool {
 	return ret
 }
 
-func (a *Agent) processToolCalls(toolCalls []*MessageToolCall) (toolMsgs []*Message, err error) {
+func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCall) (toolMsgs []*Message, err error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(toolCalls))
-	toolMsgs = make([]*Message, 0, len(toolCalls))
+	toolMsgs = make([]*Message, len(toolCalls))
 	for i := 0; i < len(toolCalls); i++ {
 		toolCall := toolCalls[i]
 		toolMsgs[i] = &Message{
@@ -168,20 +253,21 @@ func (a *Agent) processToolCalls(toolCalls []*MessageToolCall) (toolMsgs []*Mess
 		go func(i int, toolCall *MessageToolCall) {
 			defer wg.Done()
 
-			output, err1 := a.runToolCall(toolCall)
+			args := toolCall.Function.Arguments
+			// 如果是未定义schema，用默认ToolFunctionDefaultParam,则拾取拆解作为参数
+			if rawArgs := gjson.Get(args, ToolFunctionDefaultParam).String(); rawArgs != "" {
+				args = rawArgs
+			}
+
+			output, err1 := a.toolRouter(ctx, toolCall.Function.Name, args)
 			if err1 != nil {
 				err = err1
 				return
 			}
-
-			toolMsgs[i].Content = output
+			bs, _ := json.Marshal(output)
+			toolMsgs[i].Content = string(bs)
 		}(i, toolCall)
 	}
 	wg.Wait()
-	return
-}
-
-func (a *Agent) runToolCall(tool *MessageToolCall) (output string, err error) {
-	output = ""
 	return
 }

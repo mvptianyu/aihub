@@ -21,6 +21,10 @@ type provider struct {
 }
 
 func NewProvider(cfg *ProviderConfig) IProvider {
+	if err := cfg.AutoFix(); err != nil {
+		panic(err)
+	}
+
 	ins := &provider{
 		cfg:    cfg,
 		client: &http.Client{},

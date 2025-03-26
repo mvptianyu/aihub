@@ -59,7 +59,7 @@ func (h *history) GetAll(length int, needSystem bool) []*Message {
 	defer h.lock.RUnlock()
 
 	idx := 0
-	if length > 0 || length < len(h.messages) {
+	if length > 0 && length < len(h.messages) {
 		idx = len(h.messages) - length
 	}
 

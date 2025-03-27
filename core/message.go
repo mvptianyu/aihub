@@ -39,7 +39,7 @@ func (m Message) MarshalJSON() ([]byte, error) {
 	if m.Content != "" && m.MultiContent != nil {
 		return nil, ErrMessageContentFieldsMisused
 	}
-	if len(m.MultiContent) > 0 {
+	if m.MultiContent != nil && len(m.MultiContent) > 0 {
 		msg := messageMulti{
 			MultiContent: m.MultiContent,
 			Role:         m.Role,

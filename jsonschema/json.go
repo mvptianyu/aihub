@@ -65,6 +65,9 @@ func (d *Definition) Unmarshal(content string, v any) error {
 }
 
 func GenerateSchemaForType(v any) (*Definition, error) {
+	if tmp, ok := v.(reflect.Type); ok {
+		return reflectSchema(tmp)
+	}
 	return reflectSchema(reflect.TypeOf(v))
 }
 
@@ -118,6 +121,7 @@ func reflectSchemaObject(t reflect.Type) (*Definition, error) {
 	properties := make(map[string]Definition)
 	var requiredFields []string
 	for i := 0; i < t.NumField(); i++ {
+		skip := false
 		field := t.Field(i)
 		if !field.IsExported() {
 			continue
@@ -125,6 +129,9 @@ func reflectSchemaObject(t reflect.Type) (*Definition, error) {
 		jsonTag := field.Tag.Get("json")
 		var required = true
 		if jsonTag == "" {
+			if field.Anonymous {
+				skip = true //无jsonTag且为组合成员，标记跳过
+			}
 			jsonTag = field.Name
 		} else if strings.HasSuffix(jsonTag, ",omitempty") {
 			jsonTag = strings.TrimSuffix(jsonTag, ",omitempty")
@@ -135,10 +142,22 @@ func reflectSchemaObject(t reflect.Type) (*Definition, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		if skip {
+			// 本item跳过，子item承接
+			for subTag, subDef := range item.Properties {
+				properties[subTag] = subDef
+			}
+			continue
+		}
+
 		description := field.Tag.Get("description")
 		if description != "" {
 			item.Description = description
+		} else {
+			item.Description = jsonTag // 如果没有描述，用jsonTag
 		}
+
 		properties[jsonTag] = *item
 
 		if s := field.Tag.Get("required"); s != "" {

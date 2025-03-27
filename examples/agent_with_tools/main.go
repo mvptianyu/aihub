@@ -12,7 +12,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create a new agent
-	myAgent := aihub.NewAgentWithYamlFile("demo.yaml").Init(tools.Dispath)
+	myAgent := aihub.NewAgentWithYamlFile("demo.yaml", tools.Dispath)
 
 	_, txt, err := myAgent.Run(
 		ctx,

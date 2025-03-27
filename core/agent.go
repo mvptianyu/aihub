@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mvptianyu/aihub/jsonschema"
 	"github.com/tidwall/gjson"
 	"strings"
 	"sync"
@@ -28,45 +27,33 @@ type Agent struct {
 	tools      map[string]*Tool
 	history    *history
 	toolRouter ToolFuncRouter
-	inited     bool
 
 	lock sync.RWMutex
 }
 
-func NewAgent(cfg *AgentConfig) IAgent {
+func NewAgent(cfg *AgentConfig, router ToolFuncRouter) IAgent {
 	if err := cfg.AutoFix(); err != nil {
 		panic(err)
 	}
 
 	ag := &Agent{
-		cfg:      cfg,
-		provider: NewProvider(&cfg.Provider),
-		tools:    make(map[string]*Tool),
-		history:  NewHistory(*cfg.MaxStoreHistory),
-	}
-
-	return ag
-}
-
-func (a *Agent) Init(router ToolFuncRouter) IAgent {
-	a.toolRouter = router
-
-	if a.inited {
-		return a
+		cfg:        cfg,
+		provider:   NewProvider(&cfg.Provider),
+		tools:      make(map[string]*Tool),
+		history:    NewHistory(*cfg.MaxStoreHistory),
+		toolRouter: router,
 	}
 
 	// 先初始化工具
-	if err := a.initTools(); err != nil {
+	if err := ag.initTools(); err != nil {
 		panic(err)
 	}
 
 	// 再初始化系统提示词
-	if err := a.initSystem(); err != nil {
+	if err := ag.initSystem(); err != nil {
 		panic(err)
 	}
-
-	a.inited = true
-	return a
+	return ag
 }
 
 func (a *Agent) initSystem() error {
@@ -107,34 +94,19 @@ func (a *Agent) initTools() error {
 	}
 
 	for _, toolFunction := range a.cfg.Tools {
+		toolFunction.AutoFix()
 		if toolFunction.Name == "" {
 			continue
 		}
 
-		if toolFunction.Parameters == nil {
-			toolFunction.Parameters = &jsonschema.Definition{
-				Type: jsonschema.Object,
-				Properties: map[string]jsonschema.Definition{
-					ToolFunctionDefaultParam: {
-						Type:        jsonschema.String,
-						Description: "tools's input parameter",
-					},
-				},
-				Required: []string{ToolFunctionDefaultParam},
-			}
-		}
-		if toolFunction.Description == "" {
-			toolFunction.Description = toolFunction.Name
-		}
-
 		a.RegisterTool(&Tool{
 			Type:     ToolTypeFunction,
-			Function: toolFunction,
+			Function: *toolFunction,
 		})
 	}
 
 	if len(a.ListTool()) > 0 && a.toolRouter == nil {
-		return ErrToolRouterEmpty
+		return ErrToolRegisterEmpty
 	}
 	return nil
 }
@@ -146,10 +118,6 @@ func (a *Agent) ResetHistory() error {
 }
 
 func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
-	if !a.inited {
-		return nil, "", ErrAgentNotInit
-	}
-
 	options := &RunOptions{}
 	for _, opt := range opts {
 		opt(options)
@@ -233,10 +201,6 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 }
 
 func (a *Agent) RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error) {
-	if !a.inited {
-		return nil, nil, nil
-	}
-
 	// TODO implement me
 	panic("implement me")
 }
@@ -288,8 +252,9 @@ func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 	for i := 0; i < len(toolCalls); i++ {
 		toolCall := toolCalls[i]
 		toolMsgs[i] = &Message{
-			Role:       MessageRoleTool,
-			ToolCallID: toolCall.Id,
+			Role:         MessageRoleTool,
+			ToolCallID:   toolCall.Id,
+			MultiContent: make([]*MessageContentPart, 0),
 		}
 
 		go func(i int, toolCall *MessageToolCall) {
@@ -297,7 +262,7 @@ func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 
 			args := toolCall.Function.Arguments
 			// 如果是未定义schema，用默认ToolFunctionDefaultParam,则拾取拆解作为参数
-			if rawArgs := gjson.Get(args, ToolFunctionDefaultParam).String(); rawArgs != "" {
+			if rawArgs := gjson.Get(args, ToolArgumentsRawInputKey).String(); rawArgs != "" {
 				args = rawArgs
 			}
 

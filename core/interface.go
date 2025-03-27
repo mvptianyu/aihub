@@ -18,8 +18,6 @@ type IProvider interface {
 
 // IAgent interface defines the core capabilities required for an agent
 type IAgent interface {
-	Init(router ToolFuncRouter) IAgent
-
 	// Run executes the agent's main loop with the given input until a stop condition is met
 	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
 

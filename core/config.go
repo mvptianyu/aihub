@@ -21,8 +21,8 @@ type AgentConfig struct {
 	PresencePenalty  *float64 `json:"presence_penalty,omitempty" yaml:"presence_penalty,omitempty"`   // 存在惩罚[-2.0~2.0]，值越大，模型生成的文本中重复出现的词就越少
 	Temperature      *float64 `json:"temperature,omitempty" yaml:"temperature,omitempty"`             // 温度[0.0~2.0]，值越大，模型生成的文本灵活性更高
 
-	SystemPrompt string         `json:"system_prompt" yaml:"system_prompt"` // 系统提示词
-	Tools        []ToolFunction `json:"tools" yaml:"tools"`                 // 用到的工具
+	SystemPrompt string          `json:"system_prompt" yaml:"system_prompt"` // 系统提示词
+	Tools        []*ToolFunction `json:"tools" yaml:"tools"`                 // 用到的工具
 }
 
 func (cfg *AgentConfig) AutoFix() error {

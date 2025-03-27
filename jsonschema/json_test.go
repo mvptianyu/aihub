@@ -2,8 +2,10 @@ package jsonschema_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/mvptianyu/aihub/jsonschema"
 )
@@ -208,4 +210,38 @@ func structToMap(t *testing.T, v any) map[string]any {
 		return nil
 	}
 	return got
+}
+
+func TestGenerateSchemaForType(t *testing.T) {
+	type TestUserTags struct {
+		Name string `json:"name" required:"true" description:"姓名"`
+	}
+
+	type TestUserSub struct {
+		YYYY string `json:"yyyy,omitempty" description:"yyyyyyyyyyy"`
+	}
+
+	type TestUser struct {
+		TestUserSub
+
+		ID          int          `json:"id"`
+		Name        string       `json:"name" required:"true" description:"姓名"`
+		Friends     []int        `json:"friends,omitempty" required:"false" description:"朋友ID"`
+		Tags        TestUserTags `json:"tags,omitempty"`
+		BirthDate   time.Time    `json:"birth_date,omitempty"`
+		YearOfBirth string       `json:"year_of_birth,omitempty"`
+		Metadata    float64      `json:"metadata,omitempty"`
+		FavColor    string       `json:"fav_color,omitempty"`
+	}
+
+	user := &TestUser{}
+
+	got, err := jsonschema.GenerateSchemaForType(user)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	bs, _ := got.MarshalJSON()
+	fmt.Println(string(bs))
 }

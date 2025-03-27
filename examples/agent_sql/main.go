@@ -70,7 +70,7 @@ func main() {
 `
 
 	// Create a new agent
-	myAgent := aihub.NewAgentWithYamlFile("sql.yaml").Init(tools.Dispath)
+	myAgent := aihub.NewAgentWithYamlFile("sql.yaml", tools.Dispath)
 
 	_, txt, err := myAgent.Run(
 		ctx,

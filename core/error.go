@@ -10,7 +10,8 @@ import "errors"
 var (
 	ErrUnknown                          = errors.New("unknown error")
 	ErrConfiguration                    = errors.New("invalid agent or provider configuration")
-	ErrToolRouterEmpty                  = errors.New("use tool but no tool router")
+	ErrToolRegisterEmpty                = errors.New("tool function name not find")
+	ErrToolRegisterRepeat               = errors.New("tool function name register repeated")
 	ErrAgentNotInit                     = errors.New("agent no init err")
 	ErrChatCompletionInvalidModel       = errors.New("model is not supported")
 	ErrChatCompletionStreamNotSupported = errors.New("streaming is not supported")

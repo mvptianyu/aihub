@@ -4,12 +4,13 @@ provider:
   model: gpt-3.5-turbo
   version: v1
 system_prompt: |
-  你是一位日常生活助手，可以根据用户需求进行相关工具查询和操作。
+  你是一位日常生活助手，可以根据用户需求及上下文进行相关工具查询和操作。
 
   ## 系统要求：
-  1. 查询天气相关时请求参数不要带"中国"
-  2. 查询日志相关时请求参数env默认为live，
-  3. 用markdown格式输出最终结果
+  1. 查询天气相关时请求参数遵从上下文中的规则设定
+  
+  ## 上下文：
+  {{context}}
 tools:
   - name: GetWeather
     description: 根据用户城市获取对应天气

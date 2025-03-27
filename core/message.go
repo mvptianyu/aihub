@@ -87,6 +87,12 @@ func (m *Message) UnmarshalJSON(bs []byte) error {
 	return ErrMessageContentFieldsMisused
 }
 
+func (m *Message) Copy() *Message {
+	tmp := &Message{}
+	*tmp = *m
+	return tmp
+}
+
 type MessageToolCall struct {
 	Id       string `json:"id"`
 	Type     string `json:"type"`

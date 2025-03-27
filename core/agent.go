@@ -9,9 +9,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/mvptianyu/aihub/jsonschema"
 	"github.com/tidwall/gjson"
+	"strings"
 	"sync"
+)
+
+const (
+	defaultPromptReplaceContext = "{{context}}"
+	defaultPromptReplaceTools   = "{{tools}}"
+	defaultPromptReplaceMCP     = "{{mcp}}"
 )
 
 type Agent struct {
@@ -40,11 +48,11 @@ func NewAgent(cfg *AgentConfig) IAgent {
 	return ag
 }
 
-func (a *Agent) Init(router ToolFuncRouter) {
+func (a *Agent) Init(router ToolFuncRouter) IAgent {
 	a.toolRouter = router
 
 	if a.inited {
-		return
+		return a
 	}
 
 	// 先初始化工具
@@ -58,6 +66,7 @@ func (a *Agent) Init(router ToolFuncRouter) {
 	}
 
 	a.inited = true
+	return a
 }
 
 func (a *Agent) initSystem() error {
@@ -136,9 +145,14 @@ func (a *Agent) ResetHistory() error {
 	return nil
 }
 
-func (a *Agent) Run(ctx context.Context, input string) (*Message, string, error) {
+func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
 	if !a.inited {
 		return nil, "", ErrAgentNotInit
+	}
+
+	options := &RunOptions{}
+	for _, opt := range opts {
+		opt(options)
 	}
 
 	userMsg := &Message{
@@ -148,6 +162,8 @@ func (a *Agent) Run(ctx context.Context, input string) (*Message, string, error)
 
 	a.history.Push(userMsg)
 	step := 0
+	recorder := NewRecorder()
+	recorder.SetQuestion(input)
 
 	for {
 		// 超过最大步数跳出
@@ -163,6 +179,18 @@ func (a *Agent) Run(ctx context.Context, input string) (*Message, string, error)
 			PresencePenalty:  *a.cfg.PresencePenalty,
 			Temperature:      *a.cfg.Temperature,
 		}
+
+		// 上下文实时替换
+		if options.Context != "" && req.Messages[0].Role == MessageRoleSystem {
+			contextBS, _ := json.Marshal(options.Context)
+			req.Messages[0].Content = strings.Replace(req.Messages[0].Content, defaultPromptReplaceContext, string(contextBS), -1)
+		}
+
+		// 结束词规则
+		if options.StopWords != "" {
+			req.Stop = options.StopWords
+		}
+
 		rsp, err := a.provider.CreateChatCompletion(ctx, req)
 		if err != nil {
 			return nil, "", err
@@ -175,18 +203,32 @@ func (a *Agent) Run(ctx context.Context, input string) (*Message, string, error)
 		choice := rsp.Choices[0]
 		a.history.Push(choice.Message)
 
-		// 正常跳出
-		if choice.FinishReason != ChatCompletionRspFinishReasonToolCalls {
-			return choice.Message, choice.Message.Content, nil
-		}
+		switch choice.FinishReason {
+		case ChatCompletionRspFinishReasonToolCalls:
+			// 处理tool调用
+			toolMsgs, err1 := a.processToolCalls(ctx, choice.Message.ToolCalls)
+			if err1 != nil {
+				return nil, "", err1
+			}
 
-		// 处理tool调用
-		toolMsgs, err1 := a.processToolCalls(ctx, choice.Message.ToolCalls)
-		if err1 != nil {
-			return nil, "", err1
+			recorder.AddStep(choice.Message.ToolCalls, toolMsgs)
+			a.history.Push(toolMsgs...)
+			step++ // 再次请求
+		default:
+			content := choice.Message.Content
+			recorder.SetFinal(choice.Message.Content)
+
+			if options.Debug {
+				content = recorder.PrettyPrint()
+			}
+
+			if options.Claim != "" {
+				content += fmt.Sprintf("\n```ℹ️ %s```", options.Claim)
+			}
+
+			return choice.Message, content, nil
+
 		}
-		a.history.Push(toolMsgs...)
-		step++ // 再次请求
 	}
 }
 

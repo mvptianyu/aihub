@@ -18,16 +18,14 @@ type IProvider interface {
 
 // IAgent interface defines the core capabilities required for an agent
 type IAgent interface {
-	// Run executes the agent's main loop with the given input until a stop condition is met
-	Init(router ToolFuncRouter)
+	Init(router ToolFuncRouter) IAgent
 
 	// Run executes the agent's main loop with the given input until a stop condition is met
-	Run(ctx context.Context, input string) (*Message, string, error)
+	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
 
 	// RunStream supports a streaming channel from a provider
 	RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error)
 
-	// Run executes the agent's main loop with the given input until a stop condition is met
 	ResetHistory() error
 
 	// GetTool returns the tool

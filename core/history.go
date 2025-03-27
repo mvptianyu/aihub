@@ -23,7 +23,7 @@ func NewHistory(limit int) *history {
 func (h *history) GetSystemMsg() *Message {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
-	return h.sysMessage
+	return h.sysMessage.Copy()
 }
 
 func (h *history) SetSystemMsg(msg *Message) {
@@ -65,7 +65,7 @@ func (h *history) GetAll(length int, needSystem bool) []*Message {
 
 	tmp := make([]*Message, 0)
 	if needSystem && h.sysMessage != nil {
-		tmp = append(tmp, h.sysMessage)
+		tmp = append(tmp, h.sysMessage.Copy())
 	}
 	return append(tmp, h.messages[idx:]...)
 }

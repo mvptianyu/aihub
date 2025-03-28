@@ -5,7 +5,9 @@
 */
 package core
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type Message struct {
 	Content      string                `json:"-"`

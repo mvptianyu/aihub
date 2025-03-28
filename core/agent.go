@@ -9,16 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/tidwall/gjson"
-	"strings"
 	"sync"
-)
-
-const (
-	defaultPromptReplaceContext = "{{context}}"
-	defaultPromptReplaceTools   = "{{tools}}"
-	defaultPromptReplaceMCP     = "{{mcp}}"
 )
 
 type Agent struct {
@@ -66,6 +58,7 @@ func (a *Agent) initSystem() error {
 		Content: a.cfg.SystemPrompt,
 	}
 
+	options := NewRunOptions(a)
 	ctx := context.Background()
 	req := &CreateChatCompletionReq{
 		Messages:         []*Message{sysMsg},
@@ -75,6 +68,8 @@ func (a *Agent) initSystem() error {
 		PresencePenalty:  *a.cfg.PresencePenalty,
 		Temperature:      *a.cfg.Temperature,
 	}
+	sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
+
 	rsp, err := a.provider.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return err
@@ -118,7 +113,7 @@ func (a *Agent) ResetHistory() error {
 }
 
 func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
-	options := &RunOptions{}
+	options := NewRunOptions(a)
 	for _, opt := range opts {
 		opt(options)
 	}
@@ -129,13 +124,11 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	}
 
 	a.history.Push(userMsg)
-	step := 0
-	recorder := NewRecorder()
-	recorder.SetQuestion(input)
+	options.SetQuestion(input)
 
 	for {
 		// 超过最大步数跳出
-		if step > *a.cfg.MaxStepQuit {
+		if options.CurStep > *a.cfg.MaxStepQuit {
 			return nil, "", ErrChatCompletionOverMaxStep
 		}
 
@@ -148,15 +141,15 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 			Temperature:      *a.cfg.Temperature,
 		}
 
-		// 上下文实时替换
-		if options.Context != "" && req.Messages[0].Role == MessageRoleSystem {
-			contextBS, _ := json.Marshal(options.Context)
-			req.Messages[0].Content = strings.Replace(req.Messages[0].Content, defaultPromptReplaceContext, string(contextBS), -1)
-		}
-
 		// 结束词规则
 		if options.StopWords != "" {
 			req.Stop = options.StopWords
+		}
+
+		// SysPrompt实时替换
+		sysMsg := req.Messages[0]
+		if sysMsg.Role == MessageRoleSystem {
+			sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
 		}
 
 		rsp, err := a.provider.CreateChatCompletion(ctx, req)
@@ -179,21 +172,15 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 				return nil, "", err1
 			}
 
-			recorder.AddStep(choice.Message.ToolCalls, toolMsgs)
+			options.AddStep(choice.Message.ToolCalls, toolMsgs)
 			a.history.Push(toolMsgs...)
-			step++ // 再次请求
+			options.CurStep++ // 再次请求
 		default:
 			content := choice.Message.Content
-			recorder.SetFinal(choice.Message.Content)
+			options.SetFinal(choice.Message.Content)
 
-			if options.Debug {
-				content = recorder.PrettyPrint()
-			}
-
-			if options.Claim != "" {
-				content += fmt.Sprintf("\n```ℹ️ %s```", options.Claim)
-			}
-
+			// 修正回复
+			content = options.FixMessageContent(MessageRoleAssistant, choice.Message.Content)
 			return choice.Message, content, nil
 
 		}

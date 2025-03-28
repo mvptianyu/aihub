@@ -21,11 +21,11 @@ type CreateChatCompletionReq struct {
 
 // CreateChatCompletionRsp 参见https://platform.openai.com/docs/api-reference/chat/create
 type CreateChatCompletionRsp struct {
-	Id      string                    `json:"id,omitempty"`
-	Object  string                    `json:"object,omitempty"`
-	Created int                       `json:"created,omitempty"`
-	Model   string                    `json:"model,omitempty"`
-	Choices []ChatCompletionRspChoice `json:"choices,omitempty"`
+	Id      string                     `json:"id,omitempty"`
+	Object  string                     `json:"object,omitempty"`
+	Created int                        `json:"created,omitempty"`
+	Model   string                     `json:"model,omitempty"`
+	Choices []*ChatCompletionRspChoice `json:"choices,omitempty"`
 	Usage   struct {
 		PromptTokens        int `json:"prompt_tokens"`
 		CompletionTokens    int `json:"completion_tokens"`

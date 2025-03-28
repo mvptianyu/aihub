@@ -56,15 +56,13 @@ type RecordStep struct {
 	Observation string
 }
 
-func NewRecorder() *Recorder {
-	return &Recorder{
-		Steps: make([]*RecordStep, 0),
-	}
-}
-
 func (r *Recorder) AddStep(toolCalls []*MessageToolCall, toolMsgs []*Message) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+
+	if r.Steps == nil {
+		r.Steps = make([]*RecordStep, 0)
+	}
 
 	action := ""
 	observation := ""
@@ -92,10 +90,16 @@ func (r *Recorder) SetFinal(final string) {
 }
 
 func (r *Recorder) PrettyPrint() string {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+
 	output := fmt.Sprintf(prettyCommonTpl, "用户问题🤔", r.Question)
-	for idx, step := range r.Steps {
-		output += fmt.Sprintf(prettyStepTpl, idx+1, step.Action, step.Observation)
+	if r.Steps != nil {
+		for idx, step := range r.Steps {
+			output += fmt.Sprintf(prettyStepTpl, idx+1, step.Action, step.Observation)
+		}
 	}
+
 	if HasMarkdownSyntax(r.FinalAnswer) {
 		output += r.FinalAnswer
 	} else {

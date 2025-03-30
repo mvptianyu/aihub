@@ -1,13 +1,12 @@
 /*
 @Project: aihub
 @Module: main
-@File : tools.go
+@File : toolkits.go
 */
 package tools
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/mvptianyu/aihub/core"
@@ -16,22 +15,13 @@ import (
 	"strings"
 )
 
-func Dispath(ctx context.Context, name string, in string) (out interface{}, err error) {
-	switch name {
-	case "GetWeather":
-		return GetWeather(ctx, in)
-	case "GetSong":
-		return GetSong(ctx, in)
-	case "QueryClickHouse":
-		return QueryClickHouse(ctx, in)
-	}
-	return
+type Toolkits struct {
 }
 
-func GetWeather(ctx context.Context, in string) (out interface{}, err error) {
-	fmt.Println("===> GetWeather in: ", in)
+func (d *Toolkits) GetWeather(ctx context.Context, input *core.ToolInputBase, output *core.Message) (err error) {
+	fmt.Printf("===> GetWeather input: %v\n", input)
 	/*
-		fmt.Println("即将调用工具：GetWeather，参数为：" + in + "，输入 'OK' 继续:")
+		fmt.Println("即将调用工具：GetWeather，参数为：" + input.GetRawInput() + "，输入 'OK' 继续:")
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		userInput := scanner.Text()
@@ -41,39 +31,46 @@ func GetWeather(ctx context.Context, in string) (out interface{}, err error) {
 		}
 	*/
 
-	switch in {
+	switch input.GetRawInput() {
 	case "深圳":
-		return "30度,天晴", nil
+		output.Content = "30度,天晴"
+		return
 	case "香港":
-		return "20度,多云", nil
+		output.Content = "20度,多云"
+		return
 	case "北京":
-		return "7度,暴雨", nil
+		output.Content = "7度,暴雨"
+		return
 	default:
-		return "40度,暴晒", nil
+		output.Content = "40度,暴晒"
+		return
 	}
 }
 
 type SongReq struct {
+	core.ToolInputBase
 	Temperature int `json:"temperature"`
 }
 
-func GetSong(ctx context.Context, in string) (out interface{}, err error) {
-	fmt.Println("===> GetSong in: ", in)
-	req := &SongReq{}
-	json.Unmarshal([]byte(in), req)
+func (d *Toolkits) GetSong(ctx context.Context, input *SongReq, output *core.Message) (err error) {
+	fmt.Printf("===> GetSong input: %v\n", input)
 
-	if req.Temperature <= 10 {
-		return "雨爱", nil
-	} else if req.Temperature <= 20 {
-		return "云层记忆", nil
-	} else if req.Temperature <= 30 {
-		return "晴天", nil
+	if input.Temperature <= 10 {
+		output.Content = "雨爱"
+		return
+	} else if input.Temperature <= 20 {
+		output.Content = "云层记忆"
+		return
+	} else if input.Temperature <= 30 {
+		output.Content = "晴天"
+		return
 	}
 
-	return "晒死了，还听啥歌", nil
+	output.Content = "晒死了，还听啥歌"
+	return
 }
 
-func QueryClickHouse(ctx context.Context, in string) (out interface{}, err error) {
+func (d *Toolkits) QueryClickHouse(ctx context.Context, input *core.ToolInputBase, output *core.Message) (err error) {
 	// curl --location 'https://clickhouse-k8s-sg-prod.data-infra.shopee.io/?max_result_rows=10000&max_execution_time=60' \
 	// --header 'authorization: Basic c2hvcGVlX21tY19tbXMtY2x1c3Rlcl9tcHBfU2hvcGVlTU1DX2RhdGFTZXJ2aWNlX29ubGluZTpzaG9wZWVfbW1jX21tc18yMDIz' \
 	// --header 'Content-Type: text/plain' \
@@ -83,18 +80,21 @@ func QueryClickHouse(ctx context.Context, in string) (out interface{}, err error
 	header := &http.Header{}
 	header.Set("authorization", "Basic c2hvcGVlX21tY19tbXMtY2x1c3Rlcl9tcHBfU2hvcGVlTU1DX2RhdGFTZXJ2aWNlX29ubGluZTpzaG9wZWVfbW1jX21tc18yMDIz")
 	header.Set("Content-Type", "text/plain")
-	sql := strings.TrimRight(in, ";") + " FORMAT JSON"
+	sql := strings.TrimRight(input.GetRawInput(), ";") + " FORMAT CSV"
 	fmt.Println("====> sql: ", sql)
 
 	rsp, err := core.HTTPCall(surl, http.MethodPost, sql, header)
 	if err != nil {
-		return err.Error(), err
+		output.Content = err.Error()
+		return err
 	}
 	if rsp.StatusCode != http.StatusOK {
-		return "Clickhouse查询失败", errors.New("Clickhouse查询失败")
+		output.Content = "Clickhouse查询失败"
+		return errors.New(output.Content)
 	}
 
 	defer rsp.Body.Close()
-	bs, _ := io.ReadAll(rsp.Body)
-	return string(bs), nil
+	bs, err := io.ReadAll(rsp.Body)
+	output.Content = string(bs)
+	return err
 }

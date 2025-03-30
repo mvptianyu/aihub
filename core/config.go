@@ -22,7 +22,7 @@ type AgentConfig struct {
 	Temperature      *float64 `json:"temperature,omitempty" yaml:"temperature,omitempty"`             // 温度[0.0~2.0]，值越大，模型生成的文本灵活性更高
 
 	SystemPrompt string          `json:"system_prompt" yaml:"system_prompt"` // 系统提示词
-	Tools        []*ToolFunction `json:"tools" yaml:"tools"`                 // 用到的工具
+	Tools        []*ToolFunction `json:"toolMethods" yaml:"toolMethods"`     // 用到的工具
 }
 
 func (cfg *AgentConfig) AutoFix() error {

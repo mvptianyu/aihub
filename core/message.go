@@ -37,10 +37,7 @@ type messageMulti struct {
 	MultiContent []*MessageContentPart `json:"content,omitempty"`
 }
 
-func (m Message) MarshalJSON() ([]byte, error) {
-	if m.Content != "" && m.MultiContent != nil {
-		return nil, ErrMessageContentFieldsMisused
-	}
+func (m *Message) MarshalJSON() ([]byte, error) {
 	if m.MultiContent != nil && len(m.MultiContent) > 0 {
 		msg := messageMulti{
 			MultiContent: m.MultiContent,
@@ -65,16 +62,6 @@ func (m Message) MarshalJSON() ([]byte, error) {
 }
 
 func (m *Message) UnmarshalJSON(bs []byte) error {
-	msg1 := &messageSingle{}
-	if err := json.Unmarshal(bs, &msg1); err == nil {
-		m.Role = msg1.Role
-		m.Name = msg1.Name
-		m.ToolCallID = msg1.ToolCallID
-		m.ToolCalls = msg1.ToolCalls
-		m.Refusal = msg1.Refusal
-		m.Content = msg1.Content
-		return nil
-	}
 	msg2 := &messageMulti{}
 	if err := json.Unmarshal(bs, &msg2); err == nil {
 		m.Role = msg2.Role
@@ -83,6 +70,20 @@ func (m *Message) UnmarshalJSON(bs []byte) error {
 		m.ToolCalls = msg2.ToolCalls
 		m.Refusal = msg2.Refusal
 		m.MultiContent = msg2.MultiContent
+
+		if m.MultiContent != nil && len(m.MultiContent) > 0 {
+			return nil
+		}
+	}
+
+	msg1 := &messageSingle{}
+	if err := json.Unmarshal(bs, &msg1); err == nil {
+		m.Role = msg1.Role
+		m.Name = msg1.Name
+		m.ToolCallID = msg1.ToolCallID
+		m.ToolCalls = msg1.ToolCalls
+		m.Refusal = msg1.Refusal
+		m.Content = msg1.Content
 		return nil
 	}
 

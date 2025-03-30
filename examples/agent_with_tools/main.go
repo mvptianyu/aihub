@@ -12,7 +12,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create a new agent
-	myAgent := aihub.NewAgentWithYamlFile("demo.yaml", tools.Dispath)
+	myAgent := aihub.NewAgentWithYamlFile("demo.yaml", &tools.Toolkits{})
 
 	_, txt, err := myAgent.Run(
 		ctx,
@@ -25,7 +25,7 @@ func main() {
 	fmt.Println("=======================")
 	fmt.Println(txt)
 
-	seatalkGroup := "AKttAwGkR4yqgqs3j-1hZA"
+	seatalkGroup := "LMWNqAYCQVGLGi2fGYfvHw"
 
 	core.SendSeatalkText(seatalkGroup, core.SeaTalkText{
 		Content: txt,

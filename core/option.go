@@ -31,7 +31,7 @@ func NewRunOptions(a *Agent) *RunOptions {
 
 const (
 	defaultPromptReplaceContext = "{{context}}"
-	defaultPromptReplaceTools   = "{{tools}}"
+	defaultPromptReplaceTools   = "{{toolMethods}}"
 )
 
 func (opts *RunOptions) FixMessageContent(role MessageRoleType, content string) string {

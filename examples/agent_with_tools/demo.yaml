@@ -16,11 +16,3 @@ tools:
     description: 根据用户城市获取对应天气
   - name: GetSong
     description: 根据用户输入的天气温度对应的歌曲名称
-    parameters:
-      type: object
-      properties:
-        temperature:
-          type: integer
-          description: 对应城市的温度值
-      required:
-        - temperature

@@ -25,16 +25,4 @@ type IAgent interface {
 	RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error)
 
 	ResetHistory() error
-
-	// GetTool returns the tool
-	GetTool(name string) (*Tool, bool)
-
-	// RegisterTool adds a new tool to the agent's capabilities
-	RegisterTool(tool *Tool) error
-
-	// RemoveTool removes a tool by name
-	RemoveTool(name string) error
-
-	// ListTool returns the current set of available tools
-	ListTool() []*Tool
 }

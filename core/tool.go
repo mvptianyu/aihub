@@ -13,9 +13,8 @@ import (
 type ToolFuncRouter func(ctx context.Context, name string, in string) (out interface{}, err error)
 
 const (
-	ToolTypeFunction          = "function"
-	ToolArgumentsRawInputKey  = "_INPUT_"
-	ToolArgumentsRawCallIDKey = "_CALLID_"
+	ToolTypeFunction         = "function"
+	ToolArgumentsRawInputKey = "_INPUT_"
 )
 
 type Tool struct {
@@ -30,32 +29,12 @@ type ToolFunction struct {
 	Strict      bool                   `json:"strict,omitempty" yaml:"strict,omitempty"`
 }
 
-func (t *ToolFunction) AutoFix() {
-	if t.Name == "" {
-		return
-	}
-
-	if t.Parameters == nil {
-		t.Parameters = &jsonschema.Definition{
-			Type: jsonschema.Object,
-			Properties: map[string]jsonschema.Definition{
-				ToolArgumentsRawInputKey: {
-					Type:        jsonschema.String,
-					Description: "default input parameter",
-				},
-			},
-			Required: []string{ToolArgumentsRawInputKey},
-		}
-	}
-	if t.Description == "" {
-		t.Description = t.Name
-	}
-}
-
 // IToolInput 工具入参格式定义
 type IToolInput interface {
 	GetRawInput() string
 	GetRawCallID() string
+	SetRawInput(str string)
+	SetRawCallID(str string)
 }
 
 type ToolInputBase struct {
@@ -63,10 +42,18 @@ type ToolInputBase struct {
 	callID string `json:"-"`
 }
 
-func (t ToolInputBase) GetRawInput() string {
+func (t *ToolInputBase) GetRawInput() string {
 	return t.input
 }
 
-func (t ToolInputBase) GetRawCallID() string {
+func (t *ToolInputBase) GetRawCallID() string {
 	return t.callID
+}
+
+func (t *ToolInputBase) SetRawInput(str string) {
+	t.input = str
+}
+
+func (t *ToolInputBase) SetRawCallID(str string) {
+	t.callID = str
 }

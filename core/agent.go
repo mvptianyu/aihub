@@ -7,37 +7,33 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"github.com/tidwall/gjson"
 	"sync"
 )
 
 type Agent struct {
-	cfg        *AgentConfig
-	provider   IProvider
-	tools      map[string]*Tool
-	history    *history
-	toolRouter ToolFuncRouter
+	cfg      *AgentConfig
+	provider IProvider
+	history  *history
+	toolMgr  *ToolManager
 
 	lock sync.RWMutex
 }
 
-func NewAgent(cfg *AgentConfig, router ToolFuncRouter) IAgent {
+func NewAgent(cfg *AgentConfig, toolDelegate interface{}) IAgent {
 	if err := cfg.AutoFix(); err != nil {
 		panic(err)
 	}
 
 	ag := &Agent{
-		cfg:        cfg,
-		provider:   NewProvider(&cfg.Provider),
-		tools:      make(map[string]*Tool),
-		history:    NewHistory(*cfg.MaxStoreHistory),
-		toolRouter: router,
+		cfg:      cfg,
+		provider: NewProvider(&cfg.Provider),
+		history:  NewHistory(*cfg.MaxStoreHistory),
+		toolMgr:  NewToolManager(),
 	}
 
 	// 先初始化工具
-	if err := ag.initTools(); err != nil {
+	if err := ag.toolMgr.RegisterToolFunc(toolDelegate, cfg.Tools); err != nil {
 		panic(err)
 	}
 
@@ -62,7 +58,7 @@ func (a *Agent) initSystem() error {
 	ctx := context.Background()
 	req := &CreateChatCompletionReq{
 		Messages:         []*Message{sysMsg},
-		Tools:            a.ListTool(),
+		Tools:            a.toolMgr.GetToolCfg(),
 		MaxTokens:        *a.cfg.MaxTokens,
 		FrequencyPenalty: *a.cfg.FrequencyPenalty,
 		PresencePenalty:  *a.cfg.PresencePenalty,
@@ -80,29 +76,6 @@ func (a *Agent) initSystem() error {
 	}
 
 	a.history.SetSystemMsg(sysMsg)
-	return nil
-}
-
-func (a *Agent) initTools() error {
-	if a.cfg.Tools == nil || len(a.cfg.Tools) == 0 {
-		return nil
-	}
-
-	for _, toolFunction := range a.cfg.Tools {
-		toolFunction.AutoFix()
-		if toolFunction.Name == "" {
-			continue
-		}
-
-		a.RegisterTool(&Tool{
-			Type:     ToolTypeFunction,
-			Function: *toolFunction,
-		})
-	}
-
-	if len(a.ListTool()) > 0 && a.toolRouter == nil {
-		return ErrToolRegisterEmpty
-	}
 	return nil
 }
 
@@ -134,7 +107,7 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 
 		req := &CreateChatCompletionReq{
 			Messages:         a.history.GetAll(*a.cfg.MaxUseHistory, a.cfg.SystemPrompt != ""),
-			Tools:            a.ListTool(),
+			Tools:            a.toolMgr.GetToolCfg(),
 			MaxTokens:        *a.cfg.MaxTokens,
 			FrequencyPenalty: *a.cfg.FrequencyPenalty,
 			PresencePenalty:  *a.cfg.PresencePenalty,
@@ -192,46 +165,6 @@ func (a *Agent) RunStream(ctx context.Context, input string) (<-chan Message, <-
 	panic("implement me")
 }
 
-func (a *Agent) GetTool(name string) (*Tool, bool) {
-	a.lock.RLock()
-	defer a.lock.RUnlock()
-
-	if tool, ok := a.tools[name]; ok {
-		return tool, true
-	}
-	return nil, false
-}
-
-func (a *Agent) RegisterTool(tool *Tool) error {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	a.tools[tool.Function.Name] = tool
-	return nil
-}
-
-func (a *Agent) RemoveTool(name string) error {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	if _, ok := a.tools[name]; ok {
-		delete(a.tools, name)
-	}
-
-	return nil
-}
-
-func (a *Agent) ListTool() []*Tool {
-	a.lock.RLock()
-	defer a.lock.RUnlock()
-
-	ret := make([]*Tool, 0, len(a.tools))
-	for _, tool := range a.tools {
-		ret = append(ret, tool)
-	}
-	return ret
-}
-
 func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCall) (toolMsgs []*Message, err error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(toolCalls))
@@ -247,19 +180,11 @@ func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 		go func(i int, toolCall *MessageToolCall) {
 			defer wg.Done()
 
-			args := toolCall.Function.Arguments
-			// 如果是未定义schema，用默认ToolFunctionDefaultParam,则拾取拆解作为参数
-			if rawArgs := gjson.Get(args, ToolArgumentsRawInputKey).String(); rawArgs != "" {
-				args = rawArgs
-			}
-
-			output, err1 := a.toolRouter(ctx, toolCall.Function.Name, args)
+			err1 := a.toolMgr.InvokeToolFunc(ctx, toolCall, toolMsgs[i])
 			if err1 != nil {
 				err = err1
 				return
 			}
-			bs, _ := json.Marshal(output)
-			toolMsgs[i].Content = string(bs)
 		}(i, toolCall)
 	}
 	wg.Wait()

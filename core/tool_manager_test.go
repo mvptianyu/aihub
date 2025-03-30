@@ -30,18 +30,24 @@ func (d *DelegateA) Method2(ctx context.Context, input *DelegateTestInput2, outp
 
 func TestToolManager_RegisterToolFunc(t *testing.T) {
 	m := &ToolManager{
-		tools: make(map[string]*ToolItem),
+		toolMethods: make(map[string]*ToolMethod),
 	}
 
 	ctx := context.TODO()
 	var err error
 	delegate := &DelegateA{}
-	if err = m.RegisterToolFunc(delegate); err != nil {
+	if err = m.RegisterToolFunc(delegate, nil); err != nil {
 		t.Fatal(err)
 	}
 
+	call := &MessageToolCall{
+		Id: "testID",
+	}
+	call.Function.Name = "Method1"
+	call.Function.Arguments = "{\"aa\":1}"
+
 	msg := &Message{}
-	if err = m.InvokeToolFunc("Method1", ctx, "{\"aa\":1}", msg); err != nil {
+	if err = m.InvokeToolFunc(ctx, call, msg); err != nil {
 		t.Fatal(err)
 	}
 }

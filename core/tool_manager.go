@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/mvptianyu/aihub/jsonschema"
+	"github.com/tidwall/gjson"
 	"reflect"
 	"sync"
 )
@@ -11,22 +12,39 @@ import (
 // ToolFunc 工具方法签名，Input派生自ToolInputBase
 type ToolFunc func(ctx context.Context, input IToolInput, output *Message) (err error)
 
-type ToolItem struct {
+type ToolMethod struct {
+	name     string
 	delegate reflect.Value
 	method   reflect.Method
 	input    reflect.Type
-	schema   *jsonschema.Definition
 }
 
 type ToolManager struct {
-	tools map[string]*ToolItem
+	toolMethods map[string]*ToolMethod
+	toolCfg     []*Tool
 
 	lock sync.RWMutex
 }
 
-func (m *ToolManager) RegisterToolFunc(delegate interface{}) error {
+func NewToolManager() *ToolManager {
+	return &ToolManager{
+		toolMethods: make(map[string]*ToolMethod),
+		toolCfg:     make([]*Tool, 0),
+	}
+}
+
+func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []*ToolFunction) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
+	bCheckEnableTool := false // 是否需要校验启用列表
+	enableToolMap := make(map[string]*ToolFunction)
+	if enableTools != nil && len(enableTools) > 0 {
+		for _, enableTool := range enableTools {
+			enableToolMap[enableTool.Name] = enableTool
+			bCheckEnableTool = true
+		}
+	}
 
 	delegateType := reflect.TypeOf(delegate)
 	delegateVal := reflect.ValueOf(delegate)
@@ -35,6 +53,11 @@ func (m *ToolManager) RegisterToolFunc(delegate interface{}) error {
 	for i := 0; i < delegateType.NumMethod(); i++ {
 		method := delegateType.Method(i)
 		methodType := method.Type
+
+		// 重复注册
+		if _, ok := m.toolMethods[method.Name]; ok {
+			return ErrToolRegisterRepeat
+		}
 
 		// 检查方法的出入参数量
 		if methodType.NumIn() != 4 && methodType.NumOut() != 1 {
@@ -61,30 +84,61 @@ func (m *ToolManager) RegisterToolFunc(delegate interface{}) error {
 			continue
 		}
 
-		// 加入
-		if _, ok := m.tools[methodType.Name()]; ok {
-			return ErrToolRegisterRepeat
-		}
-
-		item := &ToolItem{
+		methodItem := &ToolMethod{
+			name:     method.Name,
 			delegate: delegateVal,
 			method:   method,
 			input:    methodType.In(2).Elem(), // struct类型
 		}
 
-		if item.schema, err = jsonschema.GenerateSchemaForType(item.input); err != nil {
+		tmpFunction := &ToolFunction{}
+		if bCheckEnableTool {
+			ok := false
+			if tmpFunction, ok = enableToolMap[method.Name]; !ok {
+				continue
+			}
+		}
+
+		CfgItem := *tmpFunction
+		if CfgItem.Name == "" {
+			CfgItem.Name = method.Name
+		}
+		if CfgItem.Description == "" {
+			CfgItem.Description = CfgItem.Name
+		}
+
+		if CfgItem.Parameters, err = jsonschema.GenerateSchemaForType(methodItem.input); err != nil {
 			return err
 		}
 
-		m.tools[method.Name] = item
+		if CfgItem.Parameters.Properties == nil || len(CfgItem.Parameters.Properties) == 0 {
+			CfgItem.Parameters.Properties[ToolArgumentsRawInputKey] = jsonschema.Definition{
+				Type:        jsonschema.String,
+				Description: ToolArgumentsRawInputKey,
+			}
+		}
+
+		// 加入
+		m.toolCfg = append(m.toolCfg, &Tool{
+			Type:     ToolTypeFunction,
+			Function: CfgItem,
+		})
+		m.toolMethods[method.Name] = methodItem
 	}
 	return nil
 }
 
-// 反射调用指定名称的方法
-func (m *ToolManager) InvokeToolFunc(name string, ctx context.Context, input string, output *Message) error {
+func (m *ToolManager) GetToolCfg() []*Tool {
 	m.lock.RLock()
-	item, ok := m.tools[name]
+	defer m.lock.RUnlock()
+
+	return m.toolCfg
+}
+
+// InvokeToolFunc 反射调用指定名称的方法
+func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
+	m.lock.RLock()
+	item, ok := m.toolMethods[toolCall.Function.Name]
 	m.lock.RUnlock()
 	if !ok {
 		return ErrToolRegisterEmpty
@@ -93,9 +147,14 @@ func (m *ToolManager) InvokeToolFunc(name string, ctx context.Context, input str
 	var err error
 	// 获取结构体实例的反射值
 	inputValue := reflect.New(item.input)
-	if err = json.Unmarshal([]byte(input), inputValue.Interface()); err != nil {
+	if err = json.Unmarshal([]byte(toolCall.Function.Arguments), inputValue.Interface()); err != nil {
 		return err
 	}
+
+	if rawArgs := gjson.Get(toolCall.Function.Arguments, ToolArgumentsRawInputKey).String(); rawArgs != "" {
+		inputValue.Interface().(IToolInput).SetRawInput(rawArgs)
+	}
+	inputValue.Interface().(IToolInput).SetRawCallID(toolCall.Id)
 
 	// 调用方法
 	results := item.method.Func.Call([]reflect.Value{

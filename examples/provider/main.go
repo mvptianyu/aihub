@@ -54,4 +54,5 @@ func CreateChatCompletionStream(ctx context.Context, myProvider core.IProvider, 
 	}
 
 	fmt.Println("\n======[Done]=======")
+	fmt.Println(stream.Err())
 }

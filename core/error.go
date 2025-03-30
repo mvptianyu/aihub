@@ -12,7 +12,7 @@ var (
 	ErrConfiguration                    = errors.New("invalid agent or provider configuration")
 	ErrToolRegisterEmpty                = errors.New("tool function name not find")
 	ErrToolRegisterRepeat               = errors.New("tool function name register repeated")
-	ErrAgentNotInit                     = errors.New("agent no init err")
+	ErrProviderRateLimit                = errors.New("provider trigger rate limit")
 	ErrChatCompletionInvalidModel       = errors.New("model is not supported")
 	ErrChatCompletionStreamNotSupported = errors.New("streaming is not supported")
 	ErrChatCompletionOverMaxStep        = errors.New("chat request over max step quit")

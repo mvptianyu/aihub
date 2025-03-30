@@ -33,12 +33,23 @@ func NewProvider(cfg *ProviderConfig) IProvider {
 	return ins
 }
 
+func (p *provider) checkRateLimit() (err error) {
+	if p.limiter != nil && !p.limiter.Allow() {
+		return ErrProviderRateLimit
+	}
+	return nil
+}
+
 func (p *provider) CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error) {
 	if request.Stream {
 		request.Stream = false
 	}
 	if request.Model == "" {
 		request.Model = p.cfg.Model
+	}
+
+	if err = p.checkRateLimit(); err != nil {
+		return
 	}
 
 	surl, _ := url.JoinPath(p.cfg.BaseURL, p.cfg.Version, chatCompletionsAPI)
@@ -74,6 +85,10 @@ func (p *provider) CreateChatCompletionStream(ctx context.Context, request *Crea
 		request.Model = p.cfg.Model
 	}
 
+	if err := p.checkRateLimit(); err != nil {
+		return NewStream[CreateChatCompletionRsp](nil, err)
+	}
+
 	surl, _ := url.JoinPath(p.cfg.BaseURL, p.cfg.Version, chatCompletionsAPI)
 	headers := &http.Header{
 		"Content-Type": {"application/json"},
@@ -84,7 +99,7 @@ func (p *provider) CreateChatCompletionStream(ctx context.Context, request *Crea
 
 	rsp, err := HTTPCall(surl, http.MethodPost, request, headers, HTTPWithTimeOut(60))
 	if err != nil {
-		return
+		return NewStream[CreateChatCompletionRsp](nil, err)
 	}
 
 	return NewStream[CreateChatCompletionRsp](NewDecoder(rsp), err)

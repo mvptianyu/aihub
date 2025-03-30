@@ -78,7 +78,7 @@ func (cfg *ProviderConfig) AutoFix() error {
 		cfg.Version = "v1"
 	}
 	if cfg.RateLimit <= 0 {
-		cfg.RateLimit = 50
+		cfg.RateLimit = 100
 	}
 
 	if cfg.APIKey == "" {

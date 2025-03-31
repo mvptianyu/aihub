@@ -9,79 +9,176 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 type RunOptions struct {
-	Recorder // 上下文记录器
+	RuntimeCfg AgentRuntimeCfg // 运行时配置
+	Tools      []ToolFunction  // 用到的工具定义
+	SessionID  string
+	CreateTime int64
 
-	StopWords string // 结束退出词
-	Debug     bool   // debug标志，开启则输出具体工具调用过程信息
-	Claim     string // 宣称文案，例如：本次返回由xxx提供
-	Context   string // 上下文提示词相关，例如在systemprompt中插入/替换该内容
-	CurStep   int
-
-	toolPrompts []*ToolFunction
+	sessionData map[string]interface{}
+	context     interface{} // 可选，上下文信息，例如知识库等
+	question    string
+	steps       []*runOptionsStep
+	finalAnswer string
+	lock        sync.RWMutex
 }
 
-func NewRunOptions(a *Agent) *RunOptions {
-	return &RunOptions{
-		toolPrompts: a.cfg.Tools,
-	}
+type runOptionsStep struct {
+	Action      string
+	Observation string
 }
 
 const (
 	defaultPromptReplaceContext = "{{context}}"
-	defaultPromptReplaceTools   = "{{toolMethods}}"
+	defaultPromptReplaceTools   = "{{tools}}"
 )
+
+const prettyCommonTpl = `
+**%s：**
+'''
+%s
+'''
+`
+
+const prettyStepTpl = `
+**第%d步➡️：**
+- **执行🏃‍：** 
+'''
+%s
+'''
+- **结果✅：** 
+'''
+%s
+'''
+`
 
 func (opts *RunOptions) FixMessageContent(role MessageRoleType, content string) string {
 	switch role {
 	case MessageRoleSystem:
-		if opts != nil && opts.Context != "" {
-			contentBS, _ := json.Marshal(opts.Context)
+		if opts != nil && opts.context != nil {
+			contentBS, _ := json.Marshal(opts.context)
 			content = strings.Replace(content, defaultPromptReplaceContext, string(contentBS), -1)
 		}
-		if opts.toolPrompts != nil && len(opts.toolPrompts) > 0 {
-			toolsBS, _ := json.Marshal(opts.toolPrompts)
+		if opts.Tools != nil && len(opts.Tools) > 0 {
+			toolsBS, _ := json.Marshal(opts.Tools)
 			content = strings.Replace(content, defaultPromptReplaceTools, string(toolsBS), -1)
 		}
 	case MessageRoleAssistant:
-		if opts.Debug && content != "" {
+		if opts.RuntimeCfg.Debug && content != "" {
 			content = opts.PrettyPrint()
 		}
 
-		if opts.Claim != "" && content != "" {
-			content += fmt.Sprintf("\n```ℹ️ %s```", opts.Claim)
+		if opts.RuntimeCfg.Claim != "" && content != "" {
+			content += fmt.Sprintf("\n```ℹ️ %s```", opts.RuntimeCfg.Claim)
 		}
 	default:
 	}
 	return content
 }
 
-// ------------
+func (opts *RunOptions) CheckStepQuit() bool {
+	opts.lock.RLock()
+	defer opts.lock.RUnlock()
 
+	if opts.steps == nil {
+		opts.steps = make([]*runOptionsStep, 0)
+	}
+
+	// 超过最大步数跳出
+	return len(opts.steps) > opts.RuntimeCfg.MaxStepQuit
+}
+
+func (opts *RunOptions) AddStep(toolCalls []*MessageToolCall, toolMsgs []*Message) {
+	opts.lock.Lock()
+	defer opts.lock.Unlock()
+
+	if opts.steps == nil {
+		opts.steps = make([]*runOptionsStep, 0)
+	}
+
+	action := ""
+	observation := ""
+
+	for _, toolCall := range toolCalls {
+		action += fmt.Sprintf("%s => %s( %s )\n", toolCall.Id, toolCall.Function.Name, toolCall.Function.Arguments)
+	}
+
+	for _, toolMsg := range toolMsgs {
+		observation += fmt.Sprintf("%s => %s\n", toolMsg.ToolCallID, toolMsg.Content)
+	}
+
+	opts.steps = append(opts.steps, &runOptionsStep{
+		Action:      strings.TrimRight(action, "\n"),
+		Observation: strings.TrimRight(observation, "\n"),
+	})
+}
+
+func (opts *RunOptions) SetQuestion(question string) {
+	opts.question = question
+}
+
+func (opts *RunOptions) SetFinal(final string) {
+	opts.finalAnswer = final
+}
+
+func (opts *RunOptions) PrettyPrint() string {
+	opts.lock.RLock()
+	defer opts.lock.RUnlock()
+
+	output := fmt.Sprintf(prettyCommonTpl, "用户问题🤔", opts.question)
+	if opts.steps != nil {
+		for idx, step := range opts.steps {
+			output += fmt.Sprintf(prettyStepTpl, idx+1, step.Action, step.Observation)
+		}
+	}
+
+	if HasMarkdownSyntax(opts.finalAnswer) {
+		output += opts.finalAnswer
+	} else {
+		// 最终结果无格式输出才替换
+		output += fmt.Sprintf(prettyCommonTpl, "最终结果📤", opts.finalAnswer)
+	}
+	return strings.TrimLeft(strings.Replace(output, "'''", "```", -1), "\n")
+}
+
+// ------------
 type RunOptionFunc func(*RunOptions)
 
-func WithStopWords(StopWords string) RunOptionFunc {
+func WithToolFunctions(tools []ToolFunction) RunOptionFunc {
 	return func(opts *RunOptions) {
-		opts.StopWords = StopWords
+		opts.Tools = tools
 	}
 }
 
-func WithDebug(Debug bool) RunOptionFunc {
+func WithRuntimeCfg(runtimeCfg AgentRuntimeCfg) RunOptionFunc {
 	return func(opts *RunOptions) {
-		opts.Debug = Debug
+		opts.RuntimeCfg = runtimeCfg
 	}
 }
 
-func WithClaim(Claim string) RunOptionFunc {
+func WithDebug(debug bool) RunOptionFunc {
 	return func(opts *RunOptions) {
-		opts.Claim = Claim
+		opts.RuntimeCfg.Debug = debug
 	}
 }
 
-func WithContext(Context string) RunOptionFunc {
+func WithContext(context interface{}) RunOptionFunc {
 	return func(opts *RunOptions) {
-		opts.Context = Context
+		opts.context = context
+	}
+}
+
+func WithSessionID(sessionID string) RunOptionFunc {
+	return func(opts *RunOptions) {
+		opts.SessionID = sessionID
+	}
+}
+
+func WithSessionData(sessionData map[string]interface{}) RunOptionFunc {
+	return func(opts *RunOptions) {
+		opts.sessionData = sessionData
 	}
 }

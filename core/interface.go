@@ -24,5 +24,17 @@ type IAgent interface {
 	// RunStream supports a streaming channel from a provider
 	RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error)
 
-	ResetHistory() error
+	ResetHistory(ctx context.Context, opts ...RunOptionFunc) error
+}
+
+// IApprove 授权管理器
+type IMiddleware interface {
+	// SubmitApplication 提交授权申请
+	BeforeProcessing(ctx context.Context, question string, timeout int64, session map[string]interface{}) error
+
+	// SubmitApplication 提交授权申请
+	OnProcessing(ctx context.Context, question string, timeout int64, session map[string]interface{}) error
+
+	// SubmitApplication 提交授权申请
+	AfterProcessing(ctx context.Context, question string, timeout int64, session map[string]interface{}) error
 }

@@ -33,13 +33,16 @@ type ToolFunction struct {
 type IToolInput interface {
 	GetRawInput() string
 	GetRawCallID() string
+	GetRawSession() map[string]interface{}
 	SetRawInput(str string)
 	SetRawCallID(str string)
+	SetRawSession(session map[string]interface{})
 }
 
 type ToolInputBase struct {
-	input  string `json:"-"`
-	callID string `json:"-"`
+	input   string                 `json:"-"`
+	callID  string                 `json:"-"`
+	session map[string]interface{} `json:"-"`
 }
 
 func (t *ToolInputBase) GetRawInput() string {
@@ -50,10 +53,18 @@ func (t *ToolInputBase) GetRawCallID() string {
 	return t.callID
 }
 
+func (t *ToolInputBase) GetRawSession() map[string]interface{} {
+	return t.session
+}
+
 func (t *ToolInputBase) SetRawInput(str string) {
 	t.input = str
 }
 
 func (t *ToolInputBase) SetRawCallID(str string) {
 	t.callID = str
+}
+
+func (t *ToolInputBase) SetRawSession(session map[string]interface{}) {
+	t.session = session
 }

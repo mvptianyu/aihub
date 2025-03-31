@@ -17,6 +17,8 @@ type Message struct {
 	ToolCallID   string                `json:"tool_call_id,omitempty"` // Role=tool发出请求时携带之前由Role=assistant返回的ToolCallID
 	ToolCalls    []*MessageToolCall    `json:"tool_calls,omitempty"`   // Role=assistant返回的Message所带的ToolCalls
 	Refusal      string                `json:"refusal,omitempty"`
+
+	CreateTime int64 `json:"-"`
 }
 
 type messageSingle struct {

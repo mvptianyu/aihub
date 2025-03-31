@@ -8,13 +8,15 @@ package core
 import (
 	"context"
 	"errors"
+	uuid "github.com/satori/go.uuid"
 	"sync"
+	"time"
 )
 
 type Agent struct {
 	cfg      *AgentConfig
 	provider IProvider
-	history  *history
+	history  *memory
 	toolMgr  *ToolManager
 
 	lock sync.RWMutex
@@ -28,7 +30,7 @@ func NewAgent(cfg *AgentConfig, toolDelegate interface{}) IAgent {
 	ag := &Agent{
 		cfg:      cfg,
 		provider: NewProvider(&cfg.Provider),
-		history:  NewHistory(*cfg.MaxStoreHistory),
+		history:  NewMemory(cfg.MaxStoreHistory, cfg.HistoryTimeout),
 		toolMgr:  NewToolManager(),
 	}
 
@@ -54,17 +56,17 @@ func (a *Agent) initSystem() error {
 		Content: a.cfg.SystemPrompt,
 	}
 
-	options := NewRunOptions(a)
+	options := a.NewRunOptions()
 	ctx := context.Background()
+	sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
 	req := &CreateChatCompletionReq{
 		Messages:         []*Message{sysMsg},
 		Tools:            a.toolMgr.GetToolCfg(),
-		MaxTokens:        *a.cfg.MaxTokens,
-		FrequencyPenalty: *a.cfg.FrequencyPenalty,
-		PresencePenalty:  *a.cfg.PresencePenalty,
-		Temperature:      *a.cfg.Temperature,
+		MaxTokens:        a.cfg.MaxTokens,
+		FrequencyPenalty: a.cfg.FrequencyPenalty,
+		PresencePenalty:  a.cfg.PresencePenalty,
+		Temperature:      a.cfg.Temperature,
 	}
-	sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
 
 	rsp, err := a.provider.CreateChatCompletion(ctx, req)
 	if err != nil {
@@ -80,15 +82,35 @@ func (a *Agent) initSystem() error {
 }
 
 // 重置对话
-func (a *Agent) ResetHistory() error {
-	a.history.Clear()
+func (a *Agent) ResetHistory(ctx context.Context, opts ...RunOptionFunc) error {
+	options := a.NewRunOptions()
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	a.history.Clear(options)
 	return nil
 }
 
+func (a *Agent) NewRunOptions() *RunOptions {
+	options := &RunOptions{
+		RuntimeCfg: a.cfg.AgentRuntimeCfg,
+		Tools:      a.toolMgr.GetToolDefinition(),
+		SessionID:  uuid.NewV4().String(),
+		CreateTime: time.Now().Unix(),
+	}
+	options.RuntimeCfg = a.cfg.AgentRuntimeCfg
+	options.Tools = a.toolMgr.GetToolDefinition()
+	return options
+}
+
 func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
-	options := NewRunOptions(a)
+	options := a.NewRunOptions()
 	for _, opt := range opts {
 		opt(options)
+	}
+	if options.SessionID == "" {
+		options.SessionID = uuid.NewV4().String()
 	}
 
 	userMsg := &Message{
@@ -96,27 +118,27 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 		Content: input,
 	}
 
-	a.history.Push(userMsg)
+	a.history.Push(options, userMsg)
 	options.SetQuestion(input)
 
 	for {
 		// 超过最大步数跳出
-		if options.CurStep > *a.cfg.MaxStepQuit {
+		if options.CheckStepQuit() {
 			return nil, "", ErrChatCompletionOverMaxStep
 		}
 
 		req := &CreateChatCompletionReq{
-			Messages:         a.history.GetAll(*a.cfg.MaxUseHistory, a.cfg.SystemPrompt != ""),
+			Messages:         a.history.GetLatest(options),
 			Tools:            a.toolMgr.GetToolCfg(),
-			MaxTokens:        *a.cfg.MaxTokens,
-			FrequencyPenalty: *a.cfg.FrequencyPenalty,
-			PresencePenalty:  *a.cfg.PresencePenalty,
-			Temperature:      *a.cfg.Temperature,
+			MaxTokens:        options.RuntimeCfg.MaxTokens,
+			FrequencyPenalty: options.RuntimeCfg.FrequencyPenalty,
+			PresencePenalty:  options.RuntimeCfg.PresencePenalty,
+			Temperature:      options.RuntimeCfg.Temperature,
 		}
 
 		// 结束词规则
-		if options.StopWords != "" {
-			req.Stop = options.StopWords
+		if options.RuntimeCfg.StopWords != "" {
+			req.Stop = options.RuntimeCfg.StopWords
 		}
 
 		// SysPrompt实时替换
@@ -135,19 +157,19 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 		}
 
 		choice := rsp.Choices[0]
-		a.history.Push(choice.Message)
+		a.history.Push(options, choice.Message)
 
 		switch choice.FinishReason {
 		case ChatCompletionRspFinishReasonToolCalls:
 			// 处理tool调用
-			toolMsgs, err1 := a.processToolCalls(ctx, choice.Message.ToolCalls)
+			// toolMsgs, err1 := a.processToolCalls(ctx, choice.Message.ToolCalls, options)
+			toolMsgs, err1 := a.toolMgr.ProcessToolCalls(ctx, choice.Message.ToolCalls, options)
 			if err1 != nil {
 				return nil, "", err1
 			}
 
 			options.AddStep(choice.Message.ToolCalls, toolMsgs)
-			a.history.Push(toolMsgs...)
-			options.CurStep++ // 再次请求
+			a.history.Push(options, toolMsgs...)
 		default:
 			content := choice.Message.Content
 			options.SetFinal(choice.Message.Content)
@@ -163,30 +185,4 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 func (a *Agent) RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error) {
 	// TODO implement me
 	panic("implement me")
-}
-
-func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCall) (toolMsgs []*Message, err error) {
-	wg := sync.WaitGroup{}
-	wg.Add(len(toolCalls))
-	toolMsgs = make([]*Message, len(toolCalls))
-	for i := 0; i < len(toolCalls); i++ {
-		toolCall := toolCalls[i]
-		toolMsgs[i] = &Message{
-			Role:         MessageRoleTool,
-			ToolCallID:   toolCall.Id,
-			MultiContent: make([]*MessageContentPart, 0),
-		}
-
-		go func(i int, toolCall *MessageToolCall) {
-			defer wg.Done()
-
-			err1 := a.toolMgr.InvokeToolFunc(ctx, toolCall, toolMsgs[i])
-			if err1 != nil {
-				err = err1
-				return
-			}
-		}(i, toolCall)
-	}
-	wg.Wait()
-	return
 }

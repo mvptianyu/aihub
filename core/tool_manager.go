@@ -20,25 +20,26 @@ type ToolMethod struct {
 }
 
 type ToolManager struct {
-	toolMethods map[string]*ToolMethod
-	toolCfg     []*Tool
+	toolMethods   map[string]*ToolMethod
+	toolFunctions []ToolFunction
+	middlewares   []IMiddleware
 
 	lock sync.RWMutex
 }
 
 func NewToolManager() *ToolManager {
 	return &ToolManager{
-		toolMethods: make(map[string]*ToolMethod),
-		toolCfg:     make([]*Tool, 0),
+		toolMethods:   make(map[string]*ToolMethod),
+		toolFunctions: make([]ToolFunction, 0),
 	}
 }
 
-func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []*ToolFunction) error {
+func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []ToolFunction) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	bCheckEnableTool := false // 是否需要校验启用列表
-	enableToolMap := make(map[string]*ToolFunction)
+	enableToolMap := make(map[string]ToolFunction)
 	if enableTools != nil && len(enableTools) > 0 {
 		for _, enableTool := range enableTools {
 			enableToolMap[enableTool.Name] = enableTool
@@ -91,15 +92,14 @@ func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []*Tool
 			input:    methodType.In(2).Elem(), // struct类型
 		}
 
-		tmpFunction := &ToolFunction{}
+		CfgItem := ToolFunction{}
 		if bCheckEnableTool {
 			ok := false
-			if tmpFunction, ok = enableToolMap[method.Name]; !ok {
+			if CfgItem, ok = enableToolMap[method.Name]; !ok {
 				continue
 			}
 		}
 
-		CfgItem := *tmpFunction
 		if CfgItem.Name == "" {
 			CfgItem.Name = method.Name
 		}
@@ -119,24 +119,35 @@ func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []*Tool
 		}
 
 		// 加入
-		m.toolCfg = append(m.toolCfg, &Tool{
-			Type:     ToolTypeFunction,
-			Function: CfgItem,
-		})
+		m.toolFunctions = append(m.toolFunctions, CfgItem)
 		m.toolMethods[method.Name] = methodItem
 	}
 	return nil
+}
+
+func (m *ToolManager) GetToolDefinition() []ToolFunction {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	return m.toolFunctions
 }
 
 func (m *ToolManager) GetToolCfg() []*Tool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	return m.toolCfg
+	ret := make([]*Tool, 0)
+	for _, item := range m.toolFunctions {
+		ret = append(ret, &Tool{
+			Type:     ToolTypeFunction,
+			Function: item,
+		})
+	}
+	return ret
 }
 
 // InvokeToolFunc 反射调用指定名称的方法
-func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
+func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolCall, output *Message, opts *RunOptions) error {
 	m.lock.RLock()
 	item, ok := m.toolMethods[toolCall.Function.Name]
 	m.lock.RUnlock()
@@ -155,6 +166,9 @@ func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolC
 		inputValue.Interface().(IToolInput).SetRawInput(rawArgs)
 	}
 	inputValue.Interface().(IToolInput).SetRawCallID(toolCall.Id)
+	if opts != nil {
+		inputValue.Interface().(IToolInput).SetRawSession(opts.session)
+	}
 
 	// 调用方法
 	results := item.method.Func.Call([]reflect.Value{
@@ -171,4 +185,40 @@ func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolC
 	}
 
 	return err
+}
+
+// ProcessToolCalls 处理本步骤tookcalls
+func (m *ToolManager) ProcessToolCalls(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) (toolMsgs []*Message, err error) {
+
+	// todo: 是否需要先触发拦截器（授权）
+	if m.middlewares != nil {
+		for _, middleware := range m.middlewares {
+			middleware.BeforeProcessing()
+
+		}
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(toolCalls))
+	toolMsgs = make([]*Message, len(toolCalls))
+	for i := 0; i < len(toolCalls); i++ {
+		toolCall := toolCalls[i]
+		toolMsgs[i] = &Message{
+			Role:         MessageRoleTool,
+			ToolCallID:   toolCall.Id,
+			MultiContent: make([]*MessageContentPart, 0),
+		}
+
+		go func(i int, toolCall *MessageToolCall) {
+			defer wg.Done()
+
+			err1 := m.InvokeToolFunc(ctx, toolCall, toolMsgs[i], opts)
+			if err1 != nil {
+				err = err1
+				return
+			}
+		}(i, toolCall)
+	}
+	wg.Wait()
+	return
 }

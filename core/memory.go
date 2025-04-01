@@ -13,11 +13,11 @@ type Memory struct {
 	lock       sync.RWMutex
 }
 
-func NewMemory(limit int, timeout int64) IMemory {
+func NewMemory(cfg *AgentRuntimeCfg) IMemory {
 	ret := &Memory{
 		messages: make(map[string][]*Message, 0),
-		limit:    limit,
-		timeout:  timeout,
+		limit:    cfg.MaxStoreMemory,
+		timeout:  cfg.MemoryTimeout,
 	}
 
 	go ret.cronClean()
@@ -51,6 +51,10 @@ func (h *Memory) cronClean() {
 func (h *Memory) GetSystemMsg() *Message {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
+	if h.sysMessage == nil {
+		return nil
+	}
+
 	return h.sysMessage.Copy()
 }
 
@@ -87,9 +91,8 @@ func (h *Memory) Push(opts *RunOptions, msg ...*Message) {
 
 func (h *Memory) GetLatest(opts *RunOptions) []*Message {
 	h.lock.RLock()
-	defer h.lock.RUnlock()
-
 	target, ok := h.messages[opts.SessionID]
+	h.lock.RUnlock()
 	if !ok {
 		return nil
 	}
@@ -100,8 +103,9 @@ func (h *Memory) GetLatest(opts *RunOptions) []*Message {
 	}
 
 	tmp := make([]*Message, 0)
-	if opts.RuntimeCfg.SystemPrompt != "" && h.sysMessage != nil {
-		tmp = append(tmp, h.sysMessage.Copy())
+
+	if sysMsg := h.GetSystemMsg(); sysMsg != nil {
+		tmp = append(tmp, sysMsg)
 	}
 	return append(tmp, target[idx:]...)
 }

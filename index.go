@@ -21,6 +21,7 @@ func NewAgent(cfg *core.AgentConfig, toolDelegate interface{}) core.IAgent {
 // NewAgentWithYaml 从配置读取
 func NewAgentWithYamlData(yamlData []byte, toolDelegate interface{}) core.IAgent {
 	cfg := &core.AgentConfig{}
+	cfg.Mcps = make([]string, 0)
 	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
 		log.Fatalf("Error Unmarshal YAML data: %s => %v\n", string(yamlData), err)
 		return nil

@@ -9,6 +9,7 @@ system_prompt: |
 
   ## 系统要求：
   1. 查询天气相关时请求参数遵从上下文中的规则设定
+  2. 查询日志相关时应该调用mms_log_query_by_keyword这个工具方法
   
   ## 上下文：
   {{context}}
@@ -17,3 +18,5 @@ tools:
     description: 根据用户城市获取对应天气
   - name: GetSong
     description: 根据用户输入的天气温度对应的歌曲名称
+mcps:
+  - http://localhost:8811/sse

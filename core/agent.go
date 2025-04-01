@@ -31,12 +31,15 @@ func NewAgent(cfg *AgentConfig, toolDelegate interface{}) IAgent {
 	ag := &Agent{
 		cfg:      cfg,
 		provider: NewProvider(&cfg.Provider),
-		memory:   NewMemory(cfg.MaxStoreMemory, cfg.MemoryTimeout),
-		toolMgr:  NewToolManager(),
+		memory:   NewMemory(&cfg.AgentRuntimeCfg),
+		toolMgr:  NewToolManager(&cfg.AgentRuntimeCfg),
 	}
 
-	// 先初始化工具
-	if err := ag.toolMgr.RegisterToolFunc(toolDelegate, cfg.Tools); err != nil {
+	// 先初始化MCP、本地工具
+	if err := ag.toolMgr.RegisterMCPFunc(); err != nil {
+		panic(err)
+	}
+	if err := ag.toolMgr.RegisterToolFunc(toolDelegate); err != nil {
 		panic(err)
 	}
 
@@ -58,26 +61,7 @@ func (a *Agent) initSystem() error {
 	}
 
 	options := a.NewRunOptions()
-	ctx := context.Background()
 	sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
-	req := &CreateChatCompletionReq{
-		Messages:         []*Message{sysMsg},
-		Tools:            a.toolMgr.GetToolCfg(),
-		MaxTokens:        a.cfg.MaxTokens,
-		FrequencyPenalty: a.cfg.FrequencyPenalty,
-		PresencePenalty:  a.cfg.PresencePenalty,
-		Temperature:      a.cfg.Temperature,
-	}
-
-	rsp, err := a.provider.CreateChatCompletion(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	if rsp.Error != nil {
-		return errors.New(rsp.Error.Message)
-	}
-
 	a.memory.SetSystemMsg(sysMsg)
 	return nil
 }

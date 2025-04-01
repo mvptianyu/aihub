@@ -45,8 +45,10 @@ type IMemory interface {
 
 // 会话记录
 type IToolManager interface {
+	// RegisterMCPFunc 注册MCP服务方法
+	RegisterMCPFunc() error
 	// RegisterToolFunc 注册工具方法
-	RegisterToolFunc(delegate interface{}, enableTools []ToolFunction) error
+	RegisterToolFunc(delegate interface{}) error
 	// GetToolDefinition 获取工具方法定义
 	GetToolDefinition() []ToolFunction
 	// GetToolCfg 获取工具方法Prompt信息

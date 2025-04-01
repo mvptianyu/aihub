@@ -9,10 +9,8 @@ import "os"
 
 // AgentConfig agent配置结构
 type AgentConfig struct {
-	AgentRuntimeCfg
-
-	Provider ProviderConfig `json:"provider" yaml:"provider"`               // LLM提供商配置
-	Tools    []ToolFunction `json:"tools,omitempty" yaml:"tools,omitempty"` // 用到的工具
+	AgentRuntimeCfg `yaml:",inline"`
+	Provider        ProviderConfig `json:"provider" yaml:"provider"` // LLM提供商配置
 }
 
 func (cfg *AgentConfig) AutoFix() error {
@@ -40,6 +38,8 @@ type AgentRuntimeCfg struct {
 
 	SystemPrompt string                 `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"` // 系统提示词
 	StopWords    string                 `json:"stop_words,omitempty" yaml:"stop_words,omitempty"`       // 结束退出词
+	Tools        []ToolSummary          `json:"tools,omitempty" yaml:"tools,omitempty"`                 // 用到的工具
+	Mcps         []string               `json:"mcps,omitempty" yaml:"mcps,omitempty"`                   // 用到的MCP服务
 	RunTimeout   int64                  `json:"run_timeout,omitempty" yaml:"run_timeout,omitempty"`     // 执行超时秒数
 	Claim        string                 `json:"claim,omitempty" yaml:"claim,omitempty"`                 // 宣称文案，例如：本次返回由xxx提供
 	Debug        bool                   `json:"debug,omitempty" yaml:"debug,omitempty"`                 // debug输出标志，开启则输出具体工具调用过程信息

@@ -36,7 +36,7 @@ func TestToolManager_RegisterToolFunc(t *testing.T) {
 	ctx := context.TODO()
 	var err error
 	delegate := &DelegateA{}
-	if err = m.RegisterToolFunc(delegate, nil); err != nil {
+	if err = m.RegisterToolFunc(delegate); err != nil {
 		t.Fatal(err)
 	}
 

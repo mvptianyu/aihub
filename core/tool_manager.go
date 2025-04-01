@@ -12,33 +12,79 @@ import (
 // ToolFunc 工具方法签名，Input派生自ToolInputBase
 type ToolFunc func(ctx context.Context, input IToolInput, output *Message) (err error)
 
+type ToolMode int
+
+const (
+	ToolModeGeneral ToolMode = 0
+	ToolModeMCP     ToolMode = 1
+)
+
 type ToolMethod struct {
 	name     string
 	delegate reflect.Value
 	method   reflect.Method
 	input    reflect.Type
+	mode     ToolMode
 }
 
 type ToolManager struct {
 	toolMethods   map[string]*ToolMethod
 	toolFunctions []ToolFunction
+	cfg           *AgentRuntimeCfg
 
 	lock sync.RWMutex
 }
 
-func NewToolManager() IToolManager {
+func NewToolManager(cfg *AgentRuntimeCfg) IToolManager {
 	return &ToolManager{
 		toolMethods:   make(map[string]*ToolMethod),
 		toolFunctions: make([]ToolFunction, 0),
+		cfg:           cfg,
 	}
 }
 
-func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []ToolFunction) error {
+// 注册MCP方法
+func (m *ToolManager) RegisterMCPFunc() error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if m.cfg.Mcps == nil || len(m.cfg.Mcps) < 1 {
+		return nil
+	}
+
+	// 注册
+	if err := GetDefaultMCPManager().RegisterMCPService(m.cfg.Mcps...); err != nil {
+		return err
+	}
+
+	toolFunctions := GetDefaultMCPManager().GetToolFunctions(m.cfg.Mcps...)
+	m.toolFunctions = append(m.toolFunctions, toolFunctions...)
+
+	delegate := GetDefaultMCPManager()
+	delegateType := reflect.TypeOf(delegate)
+	delegateValue := reflect.ValueOf(delegate)
+	inputType := reflect.TypeOf(ToolInputBase{})
+	for _, toolFunction := range toolFunctions {
+		toolMethod := &ToolMethod{
+			name:     toolFunction.Name,
+			delegate: delegateValue,
+			input:    inputType,
+			mode:     ToolModeMCP,
+		}
+		toolMethod.method, _ = delegateType.MethodByName("ProxyMCPCall")
+		m.toolMethods[toolFunction.Name] = toolMethod
+	}
+
+	return nil
+}
+
+func (m *ToolManager) RegisterToolFunc(delegate interface{}) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	bCheckEnableTool := false // 是否需要校验启用列表
-	enableToolMap := make(map[string]ToolFunction)
+	enableToolMap := make(map[string]ToolSummary)
+	enableTools := m.cfg.Tools
 	if enableTools != nil && len(enableTools) > 0 {
 		for _, enableTool := range enableTools {
 			enableToolMap[enableTool.Name] = enableTool
@@ -89,14 +135,17 @@ func (m *ToolManager) RegisterToolFunc(delegate interface{}, enableTools []ToolF
 			delegate: delegateVal,
 			method:   method,
 			input:    methodType.In(2).Elem(), // struct类型
+			mode:     ToolModeGeneral,
 		}
 
 		CfgItem := ToolFunction{}
 		if bCheckEnableTool {
 			ok := false
-			if CfgItem, ok = enableToolMap[method.Name]; !ok {
+			summary, ok := enableToolMap[method.Name]
+			if !ok {
 				continue
 			}
+			CfgItem.ToolSummary = summary
 		}
 
 		if CfgItem.Name == "" {
@@ -157,14 +206,19 @@ func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolC
 	var err error
 	// 获取结构体实例的反射值
 	inputValue := reflect.New(item.input)
-	if err = json.Unmarshal([]byte(toolCall.Function.Arguments), inputValue.Interface()); err != nil {
-		return err
-	}
-
-	if rawArgs := gjson.Get(toolCall.Function.Arguments, ToolArgumentsRawInputKey).String(); rawArgs != "" {
-		inputValue.Interface().(IToolInput).SetRawInput(rawArgs)
+	switch item.mode {
+	case ToolModeGeneral:
+		if err = json.Unmarshal([]byte(toolCall.Function.Arguments), inputValue.Interface()); err != nil {
+			return err
+		}
+		if rawArgs := gjson.Get(toolCall.Function.Arguments, ToolArgumentsRawInputKey).String(); rawArgs != "" {
+			inputValue.Interface().(IToolInput).SetRawInput(rawArgs)
+		}
+	case ToolModeMCP:
+		inputValue.Interface().(IToolInput).SetRawInput(toolCall.Function.Arguments)
 	}
 	inputValue.Interface().(IToolInput).SetRawCallID(toolCall.Id)
+	inputValue.Interface().(IToolInput).SetRawFuncName(toolCall.Function.Name)
 
 	// 调用方法
 	results := item.method.Func.Call([]reflect.Value{

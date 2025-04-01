@@ -8,6 +8,7 @@ package tools
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/mvptianyu/aihub/core"
@@ -23,6 +24,13 @@ type Approver struct {
 }
 
 const seatalkGroup = "LMWNqAYCQVGLGi2fGYfvHw"
+const msgTpl = `
+(test)即将调用工具，对应请求为: 
+'''
+%s
+'''
+请确认是否同意？
+`
 
 // SubmitApplication 提交授权申请
 func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*core.MessageToolCall, opts *core.RunOptions) error {
@@ -42,8 +50,10 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*core.Messa
 
 	go func() {
 		// 发审批请求
+		bs, _ := json.Marshal(toolCalls)
+		content := strings.Replace(fmt.Sprintf(msgTpl, string(bs)), "'''", "```", -1)
 		core.SendSeatalkText(seatalkGroup, core.SeaTalkText{
-			Content: "即将调用工具ID: " + requestID + "，是否同意？",
+			Content: content,
 		})
 
 		m.OnProcessing(ctx, toolCalls, opts)

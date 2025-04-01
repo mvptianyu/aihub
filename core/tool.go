@@ -22,9 +22,13 @@ type Tool struct {
 	Function ToolFunction `json:"function"`
 }
 
+type ToolSummary struct {
+	Name        string `json:"name" yaml:"name"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+}
+
 type ToolFunction struct {
-	Name        string                 `json:"name" yaml:"name"`
-	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
+	ToolSummary `yaml:",inline"`
 	Parameters  *jsonschema.Definition `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	Strict      bool                   `json:"strict,omitempty" yaml:"strict,omitempty"`
 }
@@ -33,13 +37,16 @@ type ToolFunction struct {
 type IToolInput interface {
 	GetRawInput() string
 	GetRawCallID() string
+	GetRawFuncName() string
 	SetRawInput(str string)
 	SetRawCallID(str string)
+	SetRawFuncName(str string)
 }
 
 type ToolInputBase struct {
-	input  string `json:"-"`
-	callID string `json:"-"`
+	input    string `json:"-"`
+	callID   string `json:"-"`
+	funcName string `json:"-"`
 }
 
 func (t *ToolInputBase) GetRawInput() string {
@@ -49,6 +56,9 @@ func (t *ToolInputBase) GetRawInput() string {
 func (t *ToolInputBase) GetRawCallID() string {
 	return t.callID
 }
+func (t *ToolInputBase) GetRawFuncName() string {
+	return t.funcName
+}
 
 func (t *ToolInputBase) SetRawInput(str string) {
 	t.input = str
@@ -56,4 +66,8 @@ func (t *ToolInputBase) SetRawInput(str string) {
 
 func (t *ToolInputBase) SetRawCallID(str string) {
 	t.callID = str
+}
+
+func (t *ToolInputBase) SetRawFuncName(str string) {
+	t.funcName = str
 }

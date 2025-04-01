@@ -13,17 +13,16 @@ import (
 )
 
 type RunOptions struct {
-	RuntimeCfg AgentRuntimeCfg // 运行时配置
-	Tools      []ToolFunction  // 用到的工具定义
-	SessionID  string
-	CreateTime int64
+	RuntimeCfg  AgentRuntimeCfg // 运行时配置
+	Tools       []ToolFunction  // 用到的工具定义
+	SessionID   string
+	Question    string
+	FinalAnswer string
+	DoneCh      chan bool
 
-	sessionData map[string]interface{}
-	context     interface{} // 可选，上下文信息，例如知识库等
-	question    string
-	steps       []*runOptionsStep
-	finalAnswer string
-	lock        sync.RWMutex
+	context interface{} // 可选，上下文信息，例如知识库等
+	steps   []*runOptionsStep
+	lock    sync.RWMutex
 }
 
 type runOptionsStep struct {
@@ -116,30 +115,22 @@ func (opts *RunOptions) AddStep(toolCalls []*MessageToolCall, toolMsgs []*Messag
 	})
 }
 
-func (opts *RunOptions) SetQuestion(question string) {
-	opts.question = question
-}
-
-func (opts *RunOptions) SetFinal(final string) {
-	opts.finalAnswer = final
-}
-
 func (opts *RunOptions) PrettyPrint() string {
 	opts.lock.RLock()
 	defer opts.lock.RUnlock()
 
-	output := fmt.Sprintf(prettyCommonTpl, "用户问题🤔", opts.question)
+	output := fmt.Sprintf(prettyCommonTpl, "用户问题🤔", opts.Question)
 	if opts.steps != nil {
 		for idx, step := range opts.steps {
 			output += fmt.Sprintf(prettyStepTpl, idx+1, step.Action, step.Observation)
 		}
 	}
 
-	if HasMarkdownSyntax(opts.finalAnswer) {
-		output += opts.finalAnswer
+	if HasMarkdownSyntax(opts.FinalAnswer) {
+		output += opts.FinalAnswer
 	} else {
 		// 最终结果无格式输出才替换
-		output += fmt.Sprintf(prettyCommonTpl, "最终结果📤", opts.finalAnswer)
+		output += fmt.Sprintf(prettyCommonTpl, "最终结果📤", opts.FinalAnswer)
 	}
 	return strings.TrimLeft(strings.Replace(output, "'''", "```", -1), "\n")
 }
@@ -179,6 +170,11 @@ func WithSessionID(sessionID string) RunOptionFunc {
 
 func WithSessionData(sessionData map[string]interface{}) RunOptionFunc {
 	return func(opts *RunOptions) {
-		opts.sessionData = sessionData
+		if opts.RuntimeCfg.SessionData == nil {
+			opts.RuntimeCfg.SessionData = make(map[string]interface{})
+		}
+		for k, v := range sessionData {
+			opts.RuntimeCfg.SessionData[k] = v
+		}
 	}
 }

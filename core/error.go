@@ -13,6 +13,7 @@ var (
 	ErrToolRegisterEmpty                = errors.New("tool function name not find")
 	ErrToolRegisterRepeat               = errors.New("tool function name register repeated")
 	ErrProviderRateLimit                = errors.New("provider trigger rate limit")
+	ErrAgentRunTimeout                  = errors.New("agent run timeout")
 	ErrChatCompletionInvalidModel       = errors.New("model is not supported")
 	ErrChatCompletionStreamNotSupported = errors.New("streaming is not supported")
 	ErrChatCompletionOverMaxStep        = errors.New("chat request over max step quit")

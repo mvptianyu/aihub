@@ -47,7 +47,7 @@ func TestToolManager_RegisterToolFunc(t *testing.T) {
 	call.Function.Arguments = "{\"aa\":1}"
 
 	msg := &Message{}
-	if err = m.InvokeToolFunc(ctx, call, msg, nil); err != nil {
+	if err = m.InvokeToolFunc(ctx, call, msg); err != nil {
 		t.Fatal(err)
 	}
 }

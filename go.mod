@@ -1,9 +1,11 @@
 module github.com/mvptianyu/aihub
 
-go 1.21.12
+go 1.23
+
+toolchain go1.23.7
 
 require (
-	github.com/sashabaranov/go-openai v1.38.1 // indirect
+	github.com/mark3labs/mcp-go v0.15.0 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect

@@ -1,3 +1,5 @@
+github.com/mark3labs/mcp-go v0.15.0 h1:lViiC4dk6chJHZccezaTzZLMOQVUXJDGNQPtzExr5NQ=
+github.com/mark3labs/mcp-go v0.15.0/go.mod h1:xBB350hekQsJAK7gJAii8bcEoWemboLm2mRm5/+KBaU=
 github.com/sashabaranov/go-openai v1.38.1 h1:TtZabbFQZa1nEni/IhVtDF/WQjVqDgd+cWR5OeddzF8=
 github.com/sashabaranov/go-openai v1.38.1/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/satori/go.uuid v1.2.0 h1:0uYX9dsZ2yD7q2RtLRtPSdGDWzjeM3TbMJP9utgA0ww=

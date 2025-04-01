@@ -22,12 +22,11 @@ type ToolMethod struct {
 type ToolManager struct {
 	toolMethods   map[string]*ToolMethod
 	toolFunctions []ToolFunction
-	middlewares   []IMiddleware
 
 	lock sync.RWMutex
 }
 
-func NewToolManager() *ToolManager {
+func NewToolManager() IToolManager {
 	return &ToolManager{
 		toolMethods:   make(map[string]*ToolMethod),
 		toolFunctions: make([]ToolFunction, 0),
@@ -147,7 +146,7 @@ func (m *ToolManager) GetToolCfg() []*Tool {
 }
 
 // InvokeToolFunc 反射调用指定名称的方法
-func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolCall, output *Message, opts *RunOptions) error {
+func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
 	m.lock.RLock()
 	item, ok := m.toolMethods[toolCall.Function.Name]
 	m.lock.RUnlock()
@@ -166,9 +165,6 @@ func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolC
 		inputValue.Interface().(IToolInput).SetRawInput(rawArgs)
 	}
 	inputValue.Interface().(IToolInput).SetRawCallID(toolCall.Id)
-	if opts != nil {
-		inputValue.Interface().(IToolInput).SetRawSession(opts.session)
-	}
 
 	// 调用方法
 	results := item.method.Func.Call([]reflect.Value{
@@ -185,40 +181,4 @@ func (m *ToolManager) InvokeToolFunc(ctx context.Context, toolCall *MessageToolC
 	}
 
 	return err
-}
-
-// ProcessToolCalls 处理本步骤tookcalls
-func (m *ToolManager) ProcessToolCalls(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) (toolMsgs []*Message, err error) {
-
-	// todo: 是否需要先触发拦截器（授权）
-	if m.middlewares != nil {
-		for _, middleware := range m.middlewares {
-			middleware.BeforeProcessing()
-
-		}
-	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(toolCalls))
-	toolMsgs = make([]*Message, len(toolCalls))
-	for i := 0; i < len(toolCalls); i++ {
-		toolCall := toolCalls[i]
-		toolMsgs[i] = &Message{
-			Role:         MessageRoleTool,
-			ToolCallID:   toolCall.Id,
-			MultiContent: make([]*MessageContentPart, 0),
-		}
-
-		go func(i int, toolCall *MessageToolCall) {
-			defer wg.Done()
-
-			err1 := m.InvokeToolFunc(ctx, toolCall, toolMsgs[i], opts)
-			if err1 != nil {
-				err = err1
-				return
-			}
-		}(i, toolCall)
-	}
-	wg.Wait()
-	return
 }

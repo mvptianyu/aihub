@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type memory struct {
+type Memory struct {
 	sysMessage *Message
 	messages   map[string][]*Message // sessionid => msgList
 	limit      int
@@ -13,8 +13,8 @@ type memory struct {
 	lock       sync.RWMutex
 }
 
-func NewMemory(limit int, timeout int64) *memory {
-	ret := &memory{
+func NewMemory(limit int, timeout int64) IMemory {
+	ret := &Memory{
 		messages: make(map[string][]*Message, 0),
 		limit:    limit,
 		timeout:  timeout,
@@ -24,14 +24,13 @@ func NewMemory(limit int, timeout int64) *memory {
 	return ret
 }
 
-func (h *memory) cronClean() {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-
+func (h *Memory) cronClean() {
 	ticker := time.NewTicker(time.Minute)
 	for range ticker.C {
 		// 过期判定和清理
 		now := time.Now().Unix()
+
+		h.lock.Lock()
 		for sessionId, messageList := range h.messages {
 			newList := make([]*Message, 0)
 			for _, message := range messageList {
@@ -45,30 +44,32 @@ func (h *memory) cronClean() {
 				delete(h.messages, sessionId)
 			}
 		}
+		h.lock.Unlock()
 	}
 }
 
-func (h *memory) GetSystemMsg() *Message {
+func (h *Memory) GetSystemMsg() *Message {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
 	return h.sysMessage.Copy()
 }
 
-func (h *memory) SetSystemMsg(msg *Message) {
+func (h *Memory) SetSystemMsg(msg *Message) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	h.sysMessage = msg
 }
 
-func (h *memory) Push(opts *RunOptions, msg ...*Message) {
+func (h *Memory) Push(opts *RunOptions, msg ...*Message) {
 	toAddCnt := len(msg)
+	now := time.Now().Unix()
 
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
 	for _, singleMsg := range msg {
 		if singleMsg.CreateTime == 0 {
-			singleMsg.CreateTime = opts.CreateTime
+			singleMsg.CreateTime = now
 		}
 	}
 
@@ -84,7 +85,7 @@ func (h *memory) Push(opts *RunOptions, msg ...*Message) {
 	h.messages[opts.SessionID] = append(h.messages[opts.SessionID], msg...)
 }
 
-func (h *memory) GetLatest(opts *RunOptions) []*Message {
+func (h *Memory) GetLatest(opts *RunOptions) []*Message {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
 
@@ -94,8 +95,8 @@ func (h *memory) GetLatest(opts *RunOptions) []*Message {
 	}
 
 	idx := 0
-	if opts.RuntimeCfg.MaxUseHistory > 0 && opts.RuntimeCfg.MaxUseHistory < len(target) {
-		idx = len(target) - opts.RuntimeCfg.MaxUseHistory
+	if opts.RuntimeCfg.MaxUseMemory > 0 && opts.RuntimeCfg.MaxUseMemory < len(target) {
+		idx = len(target) - opts.RuntimeCfg.MaxUseMemory
 	}
 
 	tmp := make([]*Message, 0)
@@ -105,7 +106,7 @@ func (h *memory) GetLatest(opts *RunOptions) []*Message {
 	return append(tmp, target[idx:]...)
 }
 
-func (h *memory) Clear(opts *RunOptions) {
+func (h *Memory) Clear(opts *RunOptions) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 

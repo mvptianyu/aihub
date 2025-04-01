@@ -76,7 +76,6 @@ func main() {
 	_, txt, err := myAgent.Run(
 		ctx,
 		"查询播放核心归档最近5天12401场景在id地区的总播放量和平均播放成功率，按日期、场景、地区分组和升序排序",
-		core.WithClaim("本结果由MMS AI Agent自动生成"),
 		core.WithDebug(true),
 		core.WithContext(wiki),
 	)

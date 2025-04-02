@@ -3,7 +3,7 @@
 @Module: core
 @File : tool.go
 */
-package core
+package aihub
 
 import (
 	"context"

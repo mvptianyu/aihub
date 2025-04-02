@@ -3,7 +3,7 @@
 @Module: core
 @File : error.go
 */
-package core
+package aihub
 
 import "errors"
 

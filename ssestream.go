@@ -3,7 +3,7 @@
 @Module: core
 @File : ssestream.go
 */
-package core
+package aihub
 
 import (
 	"bufio"

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/mvptianyu/aihub"
-	"github.com/mvptianyu/aihub/core"
 	"github.com/mvptianyu/aihub/examples/tools"
 )
 
@@ -76,16 +75,14 @@ func main() {
 	_, txt, err := myAgent.Run(
 		ctx,
 		"查询播放核心归档最近5天12401场景在id地区的总播放量和平均播放成功率，按日期、场景、地区分组和升序排序",
-		core.WithDebug(true),
-		core.WithContext(wiki),
+		aihub.WithDebug(true),
+		aihub.WithContext(wiki),
 	)
 	fmt.Println(err)
 	fmt.Println("=======================")
 	fmt.Println(txt)
 
-	seatalkGroup := "LMWNqAYCQVGLGi2fGYfvHw"
-
-	core.SendSeatalkText(seatalkGroup, core.SeaTalkText{
+	tools.SendSeatalkText(tools.SeatalkGroup, tools.SeaTalkText{
 		Content: txt,
 	})
 }

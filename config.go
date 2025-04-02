@@ -3,14 +3,14 @@
 @Module: core
 @File : config.go
 */
-package core
+package aihub
 
 import "os"
 
 // AgentConfig agent配置结构
 type AgentConfig struct {
-	AgentRuntimeCfg `yaml:",inline"`
-	Provider        ProviderConfig `json:"provider" yaml:"provider"` // LLM提供商配置
+	AgentRuntimeCfg `yaml:",inline"` // yaml解析inline结构
+	Provider        ProviderConfig   `json:"provider" yaml:"provider"` // LLM提供商配置
 }
 
 func (cfg *AgentConfig) AutoFix() error {

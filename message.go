@@ -3,7 +3,7 @@
 @Module: core
 @File : message.go
 */
-package core
+package aihub
 
 import (
 	"encoding/json"

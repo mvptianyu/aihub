@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mvptianyu/aihub/core"
+	"github.com/mvptianyu/aihub"
 	"os"
 	"strings"
 	"sync"
@@ -23,7 +23,6 @@ type Approver struct {
 	lock sync.RWMutex
 }
 
-const seatalkGroup = "LMWNqAYCQVGLGi2fGYfvHw"
 const msgTpl = `
 (test)即将调用工具，对应请求为: 
 '''
@@ -33,7 +32,7 @@ const msgTpl = `
 `
 
 // SubmitApplication 提交授权申请
-func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*core.MessageToolCall, opts *core.RunOptions) error {
+func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
 	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
 	requestID := ""
 	for _, call := range toolCalls {
@@ -52,7 +51,7 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*core.Messa
 		// 发审批请求
 		bs, _ := json.Marshal(toolCalls)
 		content := strings.Replace(fmt.Sprintf(msgTpl, string(bs)), "'''", "```", -1)
-		core.SendSeatalkText(seatalkGroup, core.SeaTalkText{
+		SendSeatalkText(SeatalkGroup, SeaTalkText{
 			Content: content,
 		})
 
@@ -72,7 +71,7 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*core.Messa
 }
 
 // SubmitApplication 提交授权申请
-func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*core.MessageToolCall, opts *core.RunOptions) error {
+func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
 	fmt.Printf("===> OnProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
 	requestID := ""
 	for _, call := range toolCalls {
@@ -97,7 +96,7 @@ func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*core.MessageTo
 }
 
 // SubmitApplication 提交授权申请
-func (m *Approver) AfterProcessing(ctx context.Context, toolCalls []*core.MessageToolCall, opts *core.RunOptions) error {
+func (m *Approver) AfterProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
 	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
 	return nil
 }

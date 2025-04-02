@@ -3,7 +3,7 @@
 @Module: core
 @File : mcp_manager_test.go
 */
-package core
+package aihub
 
 import (
 	"context"

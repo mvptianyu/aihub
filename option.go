@@ -3,7 +3,7 @@
 @Module: core
 @File : option.go
 */
-package core
+package aihub
 
 import (
 	"encoding/json"

@@ -3,7 +3,7 @@
 @Module: core
 @File : interface.go
 */
-package core
+package aihub
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type IAgent interface {
 	// Run executes the agent's main loop with the given input until a stop condition is met
 	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
 	// RunStream supports a streaming channel from a provider
-	RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error)
+	RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error)
 	// RegisterMiddleware 注册中间件
 	RegisterMiddleware(middleware ...IMiddleware)
 	// ResetMemory 重置会话记忆

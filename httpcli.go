@@ -3,7 +3,7 @@
 @Module: core
 @File : httpcli.go
 */
-package core
+package aihub
 
 import (
 	"bytes"

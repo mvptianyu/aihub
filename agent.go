@@ -3,12 +3,16 @@
 @Module: core
 @File : agent.go
 */
-package core
+package aihub
 
 import (
 	"context"
 	"errors"
 	uuid "github.com/satori/go.uuid"
+	"gopkg.in/yaml.v3"
+	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -48,6 +52,30 @@ func NewAgent(cfg *AgentConfig, toolDelegate interface{}) IAgent {
 		panic(err)
 	}
 	return ag
+}
+
+// NewAgentWithYaml 从配置读取
+func NewAgentWithYamlData(yamlData []byte, toolDelegate interface{}) IAgent {
+	cfg := &AgentConfig{}
+	cfg.Mcps = make([]string, 0)
+	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
+		log.Fatalf("Error Unmarshal YAML data: %s => %v\n", string(yamlData), err)
+		return nil
+	}
+
+	return NewAgent(cfg, toolDelegate)
+}
+
+// NewAgentWithYamlFile 从配置文件读取
+func NewAgentWithYamlFile(yamlFile string, toolDelegate interface{}) IAgent {
+	// 读取 YAML 文件内容
+	yamlData, err := os.ReadFile(filepath.Clean(yamlFile))
+	if err != nil {
+		log.Fatalf("Error reading YAML file: %s => %v\n", yamlFile, err)
+		return nil
+	}
+
+	return NewAgentWithYamlData(yamlData, toolDelegate)
 }
 
 func (a *Agent) initSystem() error {
@@ -194,7 +222,7 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	}
 }
 
-func (a *Agent) RunStream(ctx context.Context, input string) (<-chan Message, <-chan string, <-chan error) {
+func (a *Agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error) {
 	// TODO implement me
 	panic("implement me")
 }

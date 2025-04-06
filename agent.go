@@ -9,76 +9,41 @@ import (
 	"context"
 	"errors"
 	uuid "github.com/satori/go.uuid"
-	"gopkg.in/yaml.v3"
-	"log"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
 
-type Agent struct {
-	cfg         *AgentConfig
-	provider    IProvider
-	memory      IMemory
-	toolMgr     IToolManager
-	middlewares []IMiddleware
+type agent struct {
+	cfg           *AgentConfig
+	memory        IMemory
+	toolFunctions []ToolFunction
 
 	lock sync.RWMutex
 }
 
-func NewAgent(cfg *AgentConfig, toolDelegate interface{}) IAgent {
+func newAgent(cfg *AgentConfig) (IAgent, error) {
 	if err := cfg.AutoFix(); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	ag := &Agent{
-		cfg:      cfg,
-		provider: NewProvider(&cfg.Provider),
-		memory:   NewMemory(&cfg.AgentRuntimeCfg),
-		toolMgr:  NewToolManager(&cfg.AgentRuntimeCfg),
+	// 初始化Provider
+	if _, err := GetProviderHub().SetProvider(&cfg.Provider); err != nil {
+		return nil, err
 	}
 
-	// 先初始化MCP、本地工具
-	if err := ag.toolMgr.RegisterMCPFunc(); err != nil {
-		panic(err)
-	}
-	if err := ag.toolMgr.RegisterToolFunc(toolDelegate); err != nil {
-		panic(err)
+	ag := &agent{
+		cfg:    cfg,
+		memory: newMemory(&cfg.AgentRuntimeCfg),
 	}
 
-	// 再初始化系统提示词
+	// 初始化系统提示词
 	if err := ag.initSystem(); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return ag
+	return ag, nil
 }
 
-// NewAgentWithYaml 从配置读取
-func NewAgentWithYamlData(yamlData []byte, toolDelegate interface{}) IAgent {
-	cfg := &AgentConfig{}
-	cfg.Mcps = make([]string, 0)
-	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
-		log.Fatalf("Error Unmarshal YAML data: %s => %v\n", string(yamlData), err)
-		return nil
-	}
-
-	return NewAgent(cfg, toolDelegate)
-}
-
-// NewAgentWithYamlFile 从配置文件读取
-func NewAgentWithYamlFile(yamlFile string, toolDelegate interface{}) IAgent {
-	// 读取 YAML 文件内容
-	yamlData, err := os.ReadFile(filepath.Clean(yamlFile))
-	if err != nil {
-		log.Fatalf("Error reading YAML file: %s => %v\n", yamlFile, err)
-		return nil
-	}
-
-	return NewAgentWithYamlData(yamlData, toolDelegate)
-}
-
-func (a *Agent) initSystem() error {
+func (a *agent) initSystem() error {
 	if a.cfg.SystemPrompt == "" {
 		return nil
 	}
@@ -95,7 +60,7 @@ func (a *Agent) initSystem() error {
 }
 
 // 重置对话
-func (a *Agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
+func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 	options := a.NewRunOptions()
 	for _, opt := range opts {
 		opt(options)
@@ -105,23 +70,12 @@ func (a *Agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 	return nil
 }
 
-func (a *Agent) NewRunOptions() *RunOptions {
-	options := &RunOptions{
-		RuntimeCfg: a.cfg.AgentRuntimeCfg,
-		Tools:      a.toolMgr.GetToolDefinition(),
-		DoneCh:     make(chan bool),
+func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
+	providerIns := GetProviderHub().GetProvider(a.cfg.Provider.Name)
+	if providerIns == nil {
+		return nil, "", ErrConfiguration
 	}
-	return options
-}
 
-func (a *Agent) RegisterMiddleware(middleware ...IMiddleware) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	a.middlewares = append(a.middlewares, middleware...)
-}
-
-func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
 	options := a.NewRunOptions()
 	for _, opt := range opts {
 		opt(options)
@@ -143,10 +97,11 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	var ret *Message
 	var content = ""
 	var err error
+	var doneCh = make(chan bool)
 
 	go func() {
 		defer func() {
-			options.DoneCh <- true
+			doneCh <- true
 		}()
 
 		for {
@@ -158,7 +113,7 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 
 			req := &CreateChatCompletionReq{
 				Messages:         a.memory.GetLatest(options),
-				Tools:            a.toolMgr.GetToolCfg(),
+				Tools:            a.getToolCfg(),
 				MaxTokens:        options.RuntimeCfg.MaxTokens,
 				FrequencyPenalty: options.RuntimeCfg.FrequencyPenalty,
 				PresencePenalty:  options.RuntimeCfg.PresencePenalty,
@@ -170,13 +125,13 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 				req.Stop = options.RuntimeCfg.StopWords
 			}
 
-			// SysPrompt实时替换
+			// SysPrompt实时替换，例如Context
 			sysMsg := req.Messages[0]
 			if sysMsg.Role == MessageRoleSystem {
 				sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
 			}
 
-			rsp, err1 := a.provider.CreateChatCompletion(newCtx, req)
+			rsp, err1 := providerIns.CreateChatCompletion(newCtx, req)
 			if err1 != nil {
 				err = err1
 				return
@@ -217,21 +172,65 @@ func (a *Agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	case <-newCtx.Done():
 		err = ErrAgentRunTimeout
 		return ret, content, err
-	case <-options.DoneCh:
+	case <-doneCh:
 		return ret, content, err
 	}
 }
 
-func (a *Agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error) {
+func (a *agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-// processToolCalls 处理本步骤tookcalls
-func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) (toolMsgs []*Message, err error) {
+func (m *agent) GetToolFunctions() []ToolFunction {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if m.toolFunctions != nil {
+		return m.toolFunctions
+	}
+
+	m.toolFunctions = make([]ToolFunction, 0)
+	if m.cfg.Mcps != nil && len(m.cfg.Mcps) > 0 {
+		m.toolFunctions = append(m.toolFunctions, GetMCPHub().GetToolFunctions(m.cfg.Mcps...)...)
+	}
+	if m.cfg.Tools != nil && len(m.cfg.Tools) > 0 {
+		m.toolFunctions = append(m.toolFunctions, GetToolHub().GetToolFunctions(m.cfg.Tools...)...)
+	}
+
+	return m.toolFunctions
+}
+
+func (a *agent) NewRunOptions() *RunOptions {
+	options := &RunOptions{
+		RuntimeCfg: a.cfg.AgentRuntimeCfg,
+		Tools:      a.GetToolFunctions(),
+	}
+	return options
+}
+
+func (m *agent) getToolCfg() []*Tool {
+	toolFunctions := m.GetToolFunctions()
+
+	ret := make([]*Tool, 0)
+	for _, item := range toolFunctions {
+		ret = append(ret, &Tool{
+			Type:     ToolTypeFunction,
+			Function: item,
+		})
+	}
+	return ret
+}
+
+// processToolCalls 处理本步骤toolCalls
+func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) (toolMsgs []*Message, err error) {
+	middlewares := make([]IMiddleware, 0)
+	if a.cfg.Middlewares != nil {
+		middlewares = GetMiddlewareHub().GetMiddleware(a.cfg.Middlewares...)
+	}
+
 	// 前处理
-	for i := 0; i < len(a.middlewares); i++ {
-		middleware := a.middlewares[i]
+	for i := 0; i < len(middlewares); i++ {
+		middleware := middlewares[i]
 		if err = middleware.BeforeProcessing(ctx, toolCalls, opts); err != nil {
 			return nil, err
 		}
@@ -251,7 +250,7 @@ func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 		go func(i int, toolCall *MessageToolCall) {
 			defer wg.Done()
 
-			err1 := a.toolMgr.InvokeToolFunc(ctx, toolCall, toolMsgs[i])
+			err1 := a.invokeToolCall(ctx, toolCall, toolMsgs[i])
 			if err1 != nil {
 				err = err1
 				return
@@ -261,12 +260,25 @@ func (a *Agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 	wg.Wait()
 
 	// 后处理
-	for j := len(a.middlewares) - 1; j >= 0; j-- {
-		middleware := a.middlewares[j]
+	for j := len(middlewares) - 1; j >= 0; j-- {
+		middleware := middlewares[j]
 		if err = middleware.AfterProcessing(ctx, toolCalls, opts); err != nil {
 			return nil, err
 		}
 	}
 
 	return
+}
+
+// invokeToolCall 处理本步骤toolCall
+func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
+	// 1.MCP调用
+	rsp, err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
+	if err != nil && rsp == nil {
+		return err
+	}
+
+	// 2.ToolCall本地调用
+	err = GetToolHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
+	return err
 }

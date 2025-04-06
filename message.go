@@ -18,7 +18,8 @@ type Message struct {
 	ToolCalls    []*MessageToolCall    `json:"tool_calls,omitempty"`   // Role=assistant返回的Message所带的ToolCalls
 	Refusal      string                `json:"refusal,omitempty"`
 
-	CreateTime int64 `json:"-"`
+	CreateTime int64  `json:"-"`
+	SessionID  string `json:"-"`
 }
 
 type messageSingle struct {

@@ -14,9 +14,9 @@ system_prompt: |
   ## 上下文：
   {{context}}
 tools:
-  - name: GetWeather
-    description: 根据用户城市获取对应天气
-  - name: GetSong
-    description: 根据用户输入的天气温度对应的歌曲名称
+  - GetWeather
+  - GetSong
 mcps:
   - http://localhost:8811/sse
+middlewares:
+  - Approver

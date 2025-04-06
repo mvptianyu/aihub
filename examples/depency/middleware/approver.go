@@ -3,7 +3,7 @@
 @Module: tools
 @File : approve.go
 */
-package tools
+package middleware
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mvptianyu/aihub"
+	"github.com/mvptianyu/aihub/examples/utils"
 	"os"
 	"strings"
 	"sync"
@@ -30,6 +31,10 @@ const msgTpl = `
 '''
 请确认是否同意？
 `
+
+func (m *Approver) Name() string {
+	return "approver"
+}
 
 // SubmitApplication 提交授权申请
 func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
@@ -51,7 +56,7 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.Mess
 		// 发审批请求
 		bs, _ := json.Marshal(toolCalls)
 		content := strings.Replace(fmt.Sprintf(msgTpl, string(bs)), "'''", "```", -1)
-		SendSeatalkText(SeatalkGroup, SeaTalkText{
+		utils.SendSeatalkText(utils.SeatalkGroup, utils.SeaTalkText{
 			Content: content,
 		})
 

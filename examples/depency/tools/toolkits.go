@@ -15,10 +15,7 @@ import (
 	"strings"
 )
 
-type Toolkits struct {
-}
-
-func (d *Toolkits) GetWeather(ctx context.Context, input *aihub.ToolInputBase, output *aihub.Message) (err error) {
+func GetWeather(ctx context.Context, input *aihub.ToolInputBase, output *aihub.Message) (err error) {
 	fmt.Printf("===> GetWeather input: %v\n", input)
 	/*
 		fmt.Println("即将调用工具：GetWeather，参数为：" + input.GetRawInput() + "，输入 'OK' 继续:")
@@ -52,7 +49,7 @@ type SongReq struct {
 	Temperature int `json:"temperature"`
 }
 
-func (d *Toolkits) GetSong(ctx context.Context, input *SongReq, output *aihub.Message) (err error) {
+func GetSong(ctx context.Context, input *SongReq, output *aihub.Message) (err error) {
 	fmt.Printf("===> GetSong input: %v\n", input)
 
 	if input.Temperature <= 10 {
@@ -70,7 +67,7 @@ func (d *Toolkits) GetSong(ctx context.Context, input *SongReq, output *aihub.Me
 	return
 }
 
-func (d *Toolkits) QueryClickHouse(ctx context.Context, input *aihub.ToolInputBase, output *aihub.Message) (err error) {
+func QueryClickHouse(ctx context.Context, input *aihub.ToolInputBase, output *aihub.Message) (err error) {
 	// curl --location 'https://clickhouse-k8s-sg-prod.data-infra.shopee.io/?max_result_rows=10000&max_execution_time=60' \
 	// --header 'authorization: Basic c2hvcGVlX21tY19tbXMtY2x1c3Rlcl9tcHBfU2hvcGVlTU1DX2RhdGFTZXJ2aWNlX29ubGluZTpzaG9wZWVfbW1jX21tc18yMDIz' \
 	// --header 'Content-Type: text/plain' \

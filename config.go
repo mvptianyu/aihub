@@ -5,12 +5,21 @@
 */
 package aihub
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 // AgentConfig agent配置结构
 type AgentConfig struct {
-	AgentRuntimeCfg `yaml:",inline"` // yaml解析inline结构
+	Name            string           `json:"name" yaml:"name"`         // agent名称
 	Provider        ProviderConfig   `json:"provider" yaml:"provider"` // LLM提供商配置
+	AgentRuntimeCfg `yaml:",inline"` // yaml解析inline结构
+
+	Tools       []string `json:"tools,omitempty" yaml:"tools,omitempty"`             // 用到的工具名
+	Mcps        []string `json:"mcps,omitempty" yaml:"mcps,omitempty"`               // 用到的MCP服务
+	Middlewares []string `json:"middlewares,omitempty" yaml:"middlewares,omitempty"` // 用到的Middleware
 }
 
 func (cfg *AgentConfig) AutoFix() error {
@@ -18,8 +27,18 @@ func (cfg *AgentConfig) AutoFix() error {
 		return err
 	}
 
-	if err := cfg.AgentRuntimeCfg.AutoFix(&cfg.Provider); err != nil {
+	if err := cfg.AgentRuntimeCfg.AutoFix(); err != nil {
 		return err
+	}
+
+	if cfg.Tools == nil {
+		cfg.Tools = make([]string, 0)
+	}
+	if cfg.Mcps == nil {
+		cfg.Mcps = make([]string, 0)
+	}
+	if cfg.Middlewares == nil {
+		cfg.Middlewares = make([]string, 0)
 	}
 
 	return nil
@@ -38,15 +57,13 @@ type AgentRuntimeCfg struct {
 
 	SystemPrompt string                 `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"` // 系统提示词
 	StopWords    string                 `json:"stop_words,omitempty" yaml:"stop_words,omitempty"`       // 结束退出词
-	Tools        []ToolSummary          `json:"tools,omitempty" yaml:"tools,omitempty"`                 // 用到的工具
-	Mcps         []string               `json:"mcps,omitempty" yaml:"mcps,omitempty"`                   // 用到的MCP服务
 	RunTimeout   int64                  `json:"run_timeout,omitempty" yaml:"run_timeout,omitempty"`     // 执行超时秒数
 	Claim        string                 `json:"claim,omitempty" yaml:"claim,omitempty"`                 // 宣称文案，例如：本次返回由xxx提供
 	Debug        bool                   `json:"debug,omitempty" yaml:"debug,omitempty"`                 // debug输出标志，开启则输出具体工具调用过程信息
 	SessionData  map[string]interface{} `json:"session_data,omitempty" yaml:"session_data,omitempty"`   // session数据
 }
 
-func (cfg *AgentRuntimeCfg) AutoFix(providerCfg *ProviderConfig) error {
+func (cfg *AgentRuntimeCfg) AutoFix() error {
 	if cfg.MemoryTimeout <= 0 || cfg.MemoryTimeout > 7*24*60*60 {
 		cfg.MemoryTimeout = 7 * 24 * 60 * 60
 	}
@@ -59,8 +76,8 @@ func (cfg *AgentRuntimeCfg) AutoFix(providerCfg *ProviderConfig) error {
 	if cfg.MaxStepQuit <= 0 || cfg.MaxStepQuit > 20 {
 		cfg.MaxStepQuit = 20
 	}
-	if cfg.MaxTokens <= 0 || cfg.MaxTokens > providerCfg.MaxTokens {
-		cfg.MaxTokens = providerCfg.MaxTokens
+	if cfg.MaxTokens <= 0 || cfg.MaxTokens > 4096 {
+		cfg.MaxTokens = 4096
 	}
 	if cfg.FrequencyPenalty < -2.0 || cfg.FrequencyPenalty > 2.0 {
 		cfg.FrequencyPenalty = 0.0
@@ -106,7 +123,7 @@ func (cfg *ProviderConfig) AutoFix() error {
 
 	if cfg.APIKey == "" {
 		// 取环境变量值
-		cfg.APIKey = os.Getenv("OPENAI_API_KEY")
+		cfg.APIKey = os.Getenv(fmt.Sprintf("%s_API_KEY", strings.ToUpper(cfg.Name)))
 	}
 
 	if cfg.Name == "" || cfg.Model == "" || cfg.APIKey == "" || cfg.BaseURL == "" {

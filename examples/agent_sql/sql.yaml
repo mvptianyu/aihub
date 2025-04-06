@@ -49,5 +49,4 @@ system_prompt: |
   {转换后的带表头CSV数据结果}
   ```
 tools:
-  - name: QueryClickHouse
-    description: 根据SQL调用ClickHouse接口查询数据
+  - QueryClickHouse

@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/mvptianyu/aihub"
-	"github.com/mvptianyu/aihub/examples/tools"
+	"github.com/mvptianyu/aihub/examples/depency"
+	"github.com/mvptianyu/aihub/examples/utils"
 )
 
 func main() {
+	depency.Init() // 初始化
+
 	ctx := context.Background()
 	wiki := `
 表名称:'mmc_dp.mmc_mart_dws_vod_daily_play_metrics_1d_all'
@@ -69,8 +72,11 @@ func main() {
 `
 
 	// Create a new agent
-
-	myAgent := aihub.NewAgentWithYamlFile("sql.yaml", &tools.Toolkits{})
+	myAgent, err := aihub.GetAgentHub().SetAgentByYamlFile("sql.yaml")
+	if err != nil {
+		panic(err)
+		return
+	}
 
 	_, txt, err := myAgent.Run(
 		ctx,
@@ -82,7 +88,7 @@ func main() {
 	fmt.Println("=======================")
 	fmt.Println(txt)
 
-	tools.SendSeatalkText(tools.SeatalkGroup, tools.SeaTalkText{
+	utils.SendSeatalkText(utils.SeatalkGroup, utils.SeaTalkText{
 		Content: txt,
 	})
 }

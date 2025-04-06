@@ -7,6 +7,8 @@ package aihub
 
 import (
 	"context"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // IProvider 模型提供商相关能力
@@ -23,10 +25,10 @@ type IAgent interface {
 	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
 	// RunStream supports a streaming channel from a provider
 	RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error)
-	// RegisterMiddleware 注册中间件
-	RegisterMiddleware(middleware ...IMiddleware)
 	// ResetMemory 重置会话记忆
 	ResetMemory(ctx context.Context, opts ...RunOptionFunc) error
+	// GetToolFunctions 获取工具配置
+	GetToolFunctions() []ToolFunction
 }
 
 // 会话记录
@@ -43,26 +45,44 @@ type IMemory interface {
 	Clear(opts *RunOptions)
 }
 
-// 会话记录
-type IToolManager interface {
-	// RegisterMCPFunc 注册MCP服务方法
-	RegisterMCPFunc() error
-	// RegisterToolFunc 注册工具方法
-	RegisterToolFunc(delegate interface{}) error
-	// GetToolDefinition 获取工具方法定义
-	GetToolDefinition() []ToolFunction
-	// GetToolCfg 获取工具方法Prompt信息
-	GetToolCfg() []*Tool
-	// InvokeToolFunc 调用指定方法
-	InvokeToolFunc(ctx context.Context, toolCall *MessageToolCall, output *Message) error
-}
-
 // 调用拦截器
 type IMiddleware interface {
 	// BeforeProcessing 前处理
 	BeforeProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
-	// OnProcessing 处理中
-	OnProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
 	// AfterProcessing 后处理
 	AfterProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
+}
+
+// --------------
+type IMiddlewareHub interface {
+	GetMiddleware(name ...string) []IMiddleware
+	SetMiddleware(middlewares ...IMiddleware) error
+}
+
+type IToolHub interface {
+	GetToolFunctions(names ...string) []ToolFunction
+	GetTool(names ...string) []ToolEntry
+	SetTool(objs ...ToolEntry) error
+	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
+}
+
+type IMCPHub interface {
+	GetClient(addrs ...string) []*client.SSEMCPClient
+	SetClient(addrs ...string) error
+	ProxyCall(ctx context.Context, name string, input string, output *Message) (rsp *mcp.CallToolResult, err error)
+	GetToolFunctions(addrs ...string) []ToolFunction
+}
+
+type IProviderHub interface {
+	GetProviderList(names ...string) []IProvider
+	GetProvider(name string) IProvider
+	SetProvider(cfg *ProviderConfig) (IProvider, error)
+}
+
+type IAgentHub interface {
+	GetAgentList(names ...string) []IAgent
+	GetAgent(name string) IAgent
+	SetAgent(cfg *AgentConfig) (IAgent, error)
+	SetAgentByYamlData(yamlData []byte) (IAgent, error)
+	SetAgentByYamlFile(yamlFile string) (IAgent, error)
 }

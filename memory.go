@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type Memory struct {
+type memory struct {
 	sysMessage *Message
 	messages   map[string][]*Message // sessionid => msgList
 	limit      int
@@ -13,8 +13,8 @@ type Memory struct {
 	lock       sync.RWMutex
 }
 
-func NewMemory(cfg *AgentRuntimeCfg) IMemory {
-	ret := &Memory{
+func newMemory(cfg *AgentRuntimeCfg) IMemory {
+	ret := &memory{
 		messages: make(map[string][]*Message, 0),
 		limit:    cfg.MaxStoreMemory,
 		timeout:  cfg.MemoryTimeout,
@@ -24,7 +24,7 @@ func NewMemory(cfg *AgentRuntimeCfg) IMemory {
 	return ret
 }
 
-func (h *Memory) cronClean() {
+func (h *memory) cronClean() {
 	ticker := time.NewTicker(time.Minute)
 	for range ticker.C {
 		// 过期判定和清理
@@ -48,7 +48,7 @@ func (h *Memory) cronClean() {
 	}
 }
 
-func (h *Memory) GetSystemMsg() *Message {
+func (h *memory) GetSystemMsg() *Message {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
 	if h.sysMessage == nil {
@@ -58,13 +58,13 @@ func (h *Memory) GetSystemMsg() *Message {
 	return h.sysMessage.Copy()
 }
 
-func (h *Memory) SetSystemMsg(msg *Message) {
+func (h *memory) SetSystemMsg(msg *Message) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	h.sysMessage = msg
 }
 
-func (h *Memory) Push(opts *RunOptions, msg ...*Message) {
+func (h *memory) Push(opts *RunOptions, msg ...*Message) {
 	toAddCnt := len(msg)
 	now := time.Now().Unix()
 
@@ -74,6 +74,9 @@ func (h *Memory) Push(opts *RunOptions, msg ...*Message) {
 	for _, singleMsg := range msg {
 		if singleMsg.CreateTime == 0 {
 			singleMsg.CreateTime = now
+		}
+		if singleMsg.SessionID == "" {
+			singleMsg.SessionID = opts.SessionID
 		}
 	}
 
@@ -89,7 +92,7 @@ func (h *Memory) Push(opts *RunOptions, msg ...*Message) {
 	h.messages[opts.SessionID] = append(h.messages[opts.SessionID], msg...)
 }
 
-func (h *Memory) GetLatest(opts *RunOptions) []*Message {
+func (h *memory) GetLatest(opts *RunOptions) []*Message {
 	h.lock.RLock()
 	target, ok := h.messages[opts.SessionID]
 	h.lock.RUnlock()
@@ -110,7 +113,7 @@ func (h *Memory) GetLatest(opts *RunOptions) []*Message {
 	return append(tmp, target[idx:]...)
 }
 
-func (h *Memory) Clear(opts *RunOptions) {
+func (h *memory) Clear(opts *RunOptions) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 

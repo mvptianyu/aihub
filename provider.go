@@ -20,9 +20,9 @@ type provider struct {
 	limiter *rate.Limiter
 }
 
-func NewProvider(cfg *ProviderConfig) IProvider {
+func newProvider(cfg *ProviderConfig) (IProvider, error) {
 	if err := cfg.AutoFix(); err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	ins := &provider{
@@ -30,7 +30,7 @@ func NewProvider(cfg *ProviderConfig) IProvider {
 		client: &http.Client{},
 	}
 	ins.limiter = rate.NewLimiter(rate.Limit(cfg.RateLimit), cfg.RateLimit)
-	return ins
+	return ins, nil
 }
 
 func (p *provider) checkRateLimit() (err error) {
@@ -86,7 +86,7 @@ func (p *provider) CreateChatCompletionStream(ctx context.Context, request *Crea
 	}
 
 	if err := p.checkRateLimit(); err != nil {
-		return NewStream[CreateChatCompletionRsp](nil, err)
+		return newStream[CreateChatCompletionRsp](nil, err)
 	}
 
 	surl, _ := url.JoinPath(p.cfg.BaseURL, p.cfg.Version, chatCompletionsAPI)
@@ -99,8 +99,8 @@ func (p *provider) CreateChatCompletionStream(ctx context.Context, request *Crea
 
 	rsp, err := HTTPCall(surl, http.MethodPost, request, headers, HTTPWithTimeOut(60))
 	if err != nil {
-		return NewStream[CreateChatCompletionRsp](nil, err)
+		return newStream[CreateChatCompletionRsp](nil, err)
 	}
 
-	return NewStream[CreateChatCompletionRsp](NewDecoder(rsp), err)
+	return newStream[CreateChatCompletionRsp](newDecoder(rsp), err)
 }

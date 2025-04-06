@@ -18,7 +18,6 @@ type RunOptions struct {
 	SessionID   string
 	Question    string
 	FinalAnswer string
-	DoneCh      chan bool
 
 	context interface{} // 可选，上下文信息，例如知识库等
 	steps   []*runOptionsStep

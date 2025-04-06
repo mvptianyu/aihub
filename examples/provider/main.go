@@ -4,21 +4,24 @@ import (
 	"context"
 	"fmt"
 	"github.com/mvptianyu/aihub"
+	"github.com/mvptianyu/aihub/examples/depency"
 	"time"
 )
 
-func initProvider() aihub.IProvider {
-	return aihub.NewProvider(&aihub.ProviderConfig{
+func main() {
+	depency.Init() // 初始化
+
+	ctx := context.Background()
+	myProvider, err := aihub.GetProviderHub().SetProvider(&aihub.ProviderConfig{
 		Name:    "openai",
 		Model:   "gpt-3.5-turbo",
 		BaseURL: "https://api.openai.com",
 	})
-}
 
-func main() {
-	ctx := context.Background()
-
-	myProvider := initProvider()
+	if err != nil {
+		panic(err)
+		return
+	}
 
 	req := &aihub.CreateChatCompletionReq{
 		Messages: []*aihub.Message{

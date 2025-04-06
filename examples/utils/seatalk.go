@@ -3,7 +3,7 @@
 @Module: tools
 @File : seatalk.go
 */
-package tools
+package utils
 
 import (
 	"bytes"

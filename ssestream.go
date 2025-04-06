@@ -23,7 +23,7 @@ type Decoder interface {
 	Err() error
 }
 
-func NewDecoder(res *http.Response) Decoder {
+func newDecoder(res *http.Response) Decoder {
 	if res == nil || res.Body == nil {
 		return nil
 	}
@@ -41,7 +41,7 @@ func NewDecoder(res *http.Response) Decoder {
 
 var decoderTypes = map[string](func(io.ReadCloser) Decoder){}
 
-func RegisterDecoder(contentType string, decoder func(io.ReadCloser) Decoder) {
+func registerDecoder(contentType string, decoder func(io.ReadCloser) Decoder) {
 	decoderTypes[strings.ToLower(contentType)] = decoder
 }
 
@@ -130,7 +130,7 @@ type Stream[T any] struct {
 	done    bool
 }
 
-func NewStream[T any](decoder Decoder, err error) *Stream[T] {
+func newStream[T any](decoder Decoder, err error) *Stream[T] {
 	return &Stream[T]{
 		decoder: decoder,
 		err:     err,

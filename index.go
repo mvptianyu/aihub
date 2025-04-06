@@ -5,3 +5,75 @@
 */
 package aihub
 
+import (
+	"github.com/mark3labs/mcp-go/client"
+	"sync"
+)
+
+// ================AgentHub================
+var defaultAgentHub *agentHub
+var defaultAgentHubOnce sync.Once
+
+func GetAgentHub() IAgentHub {
+	defaultAgentHubOnce.Do(func() {
+		defaultAgentHub = &agentHub{
+			agents: make(map[string]IAgent),
+		}
+	})
+	return defaultAgentHub
+}
+
+// ================ProviderHub================
+var defaultProviderHub *providerHub
+var defaultProviderHubOnce sync.Once
+
+func GetProviderHub() IProviderHub {
+	defaultProviderHubOnce.Do(func() {
+		defaultProviderHub = &providerHub{
+			providers: make(map[string]IProvider),
+		}
+	})
+	return defaultProviderHub
+}
+
+// ================MCPHub================
+var defaultMCPHub *mcpHub
+var defaultMCPHubHubOnce sync.Once
+
+func GetMCPHub() IMCPHub {
+	defaultMCPHubHubOnce.Do(func() {
+		defaultMCPHub = &mcpHub{
+			cliMaps:    make(map[string]*client.SSEMCPClient),
+			toolMaps:   make(map[string][]ToolFunction),
+			fnNameMaps: make(map[string]*client.SSEMCPClient),
+		}
+		go defaultMCPHub.cronUpdateTools()
+	})
+	return defaultMCPHub
+}
+
+// ================ToolHub================
+var defaultToolHub *toolHub
+var defaultToolHubOnce sync.Once
+
+func GetToolHub() IToolHub {
+	defaultToolHubOnce.Do(func() {
+		defaultToolHub = &toolHub{
+			toolEntrys: make(map[string]ToolEntry),
+		}
+	})
+	return defaultToolHub
+}
+
+// ================MiddlewareHub================
+var defaultMiddlewareHub *middlewareHub
+var defaultMiddlewareHubOnce sync.Once
+
+func GetMiddlewareHub() IMiddlewareHub {
+	defaultMiddlewareHubOnce.Do(func() {
+		defaultMiddlewareHub = &middlewareHub{
+			middlewares: make(map[string]IMiddleware),
+		}
+	})
+	return defaultMiddlewareHub
+}

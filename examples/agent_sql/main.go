@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/mvptianyu/aihub"
 	"github.com/mvptianyu/aihub/examples/depency"
-	"github.com/mvptianyu/aihub/examples/utils"
 )
 
 func main() {
@@ -87,8 +86,4 @@ func main() {
 	fmt.Println(err)
 	fmt.Println("=======================")
 	fmt.Println(txt)
-
-	utils.SendSeatalkText(utils.SeatalkGroup, utils.SeaTalkText{
-		Content: txt,
-	})
 }

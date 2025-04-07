@@ -41,11 +41,20 @@ func (h *agentHub) GetAgent(name string) IAgent {
 	return nil
 }
 
+func (h *agentHub) DelAgent(names ...string) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	for _, name := range names {
+		delete(h.agents, name)
+	}
+	return nil
+}
+
 func (h *agentHub) SetAgent(cfg *AgentConfig) (IAgent, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	if tmp, ok := h.agents[cfg.Name]; ok {
-		return tmp, nil
+	if _, ok := h.agents[cfg.Name]; ok {
+		delete(h.agents, cfg.Name) // 删除旧的
 	}
 
 	ag, err := newAgent(cfg)

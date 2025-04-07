@@ -201,3 +201,18 @@ func (m *mcpHub) SetClient(addrs ...string) error {
 
 	return nil
 }
+
+func (h *mcpHub) DelClient(addrs ...string) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	for _, addr := range addrs {
+		if toolFunctions, ok := h.toolMaps[addr]; ok {
+			for _, toolFunction := range toolFunctions {
+				delete(h.fnNameMaps, toolFunction.Name)
+			}
+			delete(h.toolMaps, addr)
+		}
+		delete(h.cliMaps, addr)
+	}
+	return nil
+}

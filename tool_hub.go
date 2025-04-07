@@ -140,6 +140,15 @@ func (h *toolHub) SetTool(objs ...ToolEntry) error {
 	return nil
 }
 
+func (h *toolHub) DelTool(names ...string) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	for _, name := range names {
+		delete(h.toolEntrys, name)
+	}
+	return nil
+}
+
 // 代理ToolCall请求
 func (c *toolHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
 	tmpToolEntrys := c.GetTool(name)

@@ -43,3 +43,12 @@ func (h *middlewareHub) SetMiddleware(objs ...IMiddleware) error {
 	}
 	return nil
 }
+
+func (h *middlewareHub) DelMiddleware(names ...string) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	for _, name := range names {
+		delete(h.middlewares, name)
+	}
+	return nil
+}

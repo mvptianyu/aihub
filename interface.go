@@ -55,19 +55,22 @@ type IMiddleware interface {
 
 // --------------
 type IMiddlewareHub interface {
-	GetMiddleware(name ...string) []IMiddleware
+	GetMiddleware(names ...string) []IMiddleware
+	DelMiddleware(names ...string) error
 	SetMiddleware(middlewares ...IMiddleware) error
 }
 
 type IToolHub interface {
 	GetToolFunctions(names ...string) []ToolFunction
 	GetTool(names ...string) []ToolEntry
+	DelTool(names ...string) error
 	SetTool(objs ...ToolEntry) error
 	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
 }
 
 type IMCPHub interface {
 	GetClient(addrs ...string) []*client.SSEMCPClient
+	DelClient(addrs ...string) error
 	SetClient(addrs ...string) error
 	ProxyCall(ctx context.Context, name string, input string, output *Message) (rsp *mcp.CallToolResult, err error)
 	GetToolFunctions(addrs ...string) []ToolFunction
@@ -76,6 +79,7 @@ type IMCPHub interface {
 type IProviderHub interface {
 	GetProviderList(names ...string) []IProvider
 	GetProvider(name string) IProvider
+	DelProvider(name string) error
 	SetProvider(cfg *ProviderConfig) (IProvider, error)
 	SetProviderByYamlData(yamlData []byte) (IProvider, error)
 	SetProviderByYamlFile(yamlFile string) (IProvider, error)
@@ -84,6 +88,7 @@ type IProviderHub interface {
 type IAgentHub interface {
 	GetAgentList(names ...string) []IAgent
 	GetAgent(name string) IAgent
+	DelAgent(name string) error
 	SetAgent(cfg *AgentConfig) (IAgent, error)
 	SetAgentByYamlData(yamlData []byte) (IAgent, error)
 	SetAgentByYamlFile(yamlFile string) (IAgent, error)

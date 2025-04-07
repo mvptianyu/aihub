@@ -41,11 +41,20 @@ func (h *providerHub) GetProvider(name string) IProvider {
 	return nil
 }
 
+func (h *providerHub) DelProvider(names ...string) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	for _, name := range names {
+		delete(h.providers, name)
+	}
+	return nil
+}
+
 func (h *providerHub) SetProvider(cfg *ProviderConfig) (IProvider, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	if tmp, ok := h.providers[cfg.Name]; ok {
-		return tmp, nil
+	if _, ok := h.providers[cfg.Name]; ok {
+		delete(h.providers, cfg.Name) // 删除旧的
 	}
 
 	ins, err := newProvider(cfg)

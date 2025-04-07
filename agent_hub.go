@@ -41,12 +41,10 @@ func (h *agentHub) GetAgent(name string) IAgent {
 	return nil
 }
 
-func (h *agentHub) DelAgent(names ...string) error {
+func (h *agentHub) DelAgent(name string) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	for _, name := range names {
-		delete(h.agents, name)
-	}
+	delete(h.agents, name)
 	return nil
 }
 

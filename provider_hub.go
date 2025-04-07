@@ -41,12 +41,10 @@ func (h *providerHub) GetProvider(name string) IProvider {
 	return nil
 }
 
-func (h *providerHub) DelProvider(names ...string) error {
+func (h *providerHub) DelProvider(name string) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	for _, name := range names {
-		delete(h.providers, name)
-	}
+	delete(h.providers, name)
 	return nil
 }
 

@@ -46,10 +46,6 @@ func InitTools() {
 			Function:    tools.GetSong,
 			Description: "根据天气情况获取推荐歌曲名称",
 		},
-		aihub.ToolEntry{
-			Function:    tools.QueryClickHouse,
-			Description: "根据SQL语句查询核心指标数据",
-		},
 	)
 	if err != nil {
 		panic(err)

@@ -7,7 +7,6 @@ package aihub
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"sync"
@@ -64,9 +63,8 @@ func (h *agentHub) SetAgent(cfg *AgentConfig) (IAgent, error) {
 }
 
 func (h *agentHub) SetAgentByYamlData(yamlData []byte) (IAgent, error) {
-	cfg := &AgentConfig{}
-	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
-		fmt.Printf("Error Unmarshal YAML data: %s => %v\n", string(yamlData), err)
+	cfg, err := YamlDataToAgentConfig(yamlData)
+	if err != nil {
 		return nil, err
 	}
 	return h.SetAgent(cfg)

@@ -7,7 +7,6 @@ package aihub
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"sync"
@@ -64,9 +63,8 @@ func (h *providerHub) SetProvider(cfg *ProviderConfig) (IProvider, error) {
 }
 
 func (h *providerHub) SetProviderByYamlData(yamlData []byte) (IProvider, error) {
-	cfg := &ProviderConfig{}
-	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
-		fmt.Printf("Error Unmarshal YAML data: %s => %v\n", string(yamlData), err)
+	cfg, err := YamlDataToProviderConfig(yamlData)
+	if err != nil {
 		return nil, err
 	}
 	return h.SetProvider(cfg)

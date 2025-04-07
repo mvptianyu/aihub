@@ -13,8 +13,7 @@ import (
 
 // AgentConfig agent配置结构
 type AgentConfig struct {
-	Name            string           `json:"name" yaml:"name"`         // agent名称
-	Provider        ProviderConfig   `json:"provider" yaml:"provider"` // LLM提供商配置
+	Name            string           `json:"name" yaml:"name"` // agent名称
 	AgentRuntimeCfg `yaml:",inline"` // yaml解析inline结构
 
 	Tools       []string `json:"tools,omitempty" yaml:"tools,omitempty"`             // 用到的工具名
@@ -23,10 +22,6 @@ type AgentConfig struct {
 }
 
 func (cfg *AgentConfig) AutoFix() error {
-	if err := cfg.Provider.AutoFix(); err != nil {
-		return err
-	}
-
 	if err := cfg.AgentRuntimeCfg.AutoFix(); err != nil {
 		return err
 	}
@@ -55,6 +50,7 @@ type AgentRuntimeCfg struct {
 	PresencePenalty  float64 `json:"presence_penalty,omitempty" yaml:"presence_penalty,omitempty"`   // 存在惩罚[-2.0~2.0]，值越大，模型生成的文本中重复出现的词就越少
 	Temperature      float64 `json:"temperature,omitempty" yaml:"temperature,omitempty"`             // 温度[0.0~2.0]，值越大，模型生成的文本灵活性更高
 
+	Provider     string                 `json:"provider,omitempty" yaml:"provider,omitempty"`           // LLM提供商配置
 	SystemPrompt string                 `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"` // 系统提示词
 	StopWords    string                 `json:"stop_words,omitempty" yaml:"stop_words,omitempty"`       // 结束退出词
 	RunTimeout   int64                  `json:"run_timeout,omitempty" yaml:"run_timeout,omitempty"`     // 执行超时秒数
@@ -94,6 +90,10 @@ func (cfg *AgentRuntimeCfg) AutoFix() error {
 	}
 	if cfg.SessionData == nil {
 		cfg.SessionData = make(map[string]interface{})
+	}
+
+	if cfg.Provider == "" {
+		return ErrConfiguration
 	}
 
 	return nil

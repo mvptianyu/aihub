@@ -25,12 +25,7 @@ func newAgent(cfg *AgentConfig) (IAgent, error) {
 	if err := cfg.AutoFix(); err != nil {
 		return nil, err
 	}
-
-	// 初始化Provider
-	if _, err := GetProviderHub().SetProvider(&cfg.Provider); err != nil {
-		return nil, err
-	}
-
+	
 	ag := &agent{
 		cfg:    cfg,
 		memory: newMemory(&cfg.AgentRuntimeCfg),
@@ -71,7 +66,7 @@ func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 }
 
 func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
-	providerIns := GetProviderHub().GetProvider(a.cfg.Provider.Name)
+	providerIns := GetProviderHub().GetProvider(a.cfg.Provider)
 	if providerIns == nil {
 		return nil, "", ErrConfiguration
 	}

@@ -7,7 +7,8 @@ package depency
 
 import (
 	"github.com/mvptianyu/aihub"
-	"github.com/mvptianyu/aihub/examples/depency/middleware"
+	"github.com/mvptianyu/aihub/examples/depency/middlewares"
+	"github.com/mvptianyu/aihub/examples/depency/providers"
 	"github.com/mvptianyu/aihub/examples/depency/tools"
 )
 
@@ -19,11 +20,7 @@ func Init() {
 }
 
 func InitProviders() {
-	_, err := aihub.GetProviderHub().SetProvider(&aihub.ProviderConfig{
-		Name:    "openai",
-		Model:   "gpt-3.5-turbo",
-		BaseURL: "https://api.openai.com",
-	})
+	_, err := aihub.GetProviderHub().SetProviderByYamlData([]byte(providers.OPENAI_CONFIG))
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +50,7 @@ func InitTools() {
 }
 
 func InitMiddlewares() {
-	err := aihub.GetMiddlewareHub().SetMiddleware(&middleware.Approver{})
+	err := aihub.GetMiddlewareHub().SetMiddleware(&middlewares.Approver{})
 	if err != nil {
 		panic(err)
 	}

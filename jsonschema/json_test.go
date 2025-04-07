@@ -231,7 +231,7 @@ func TestGenerateSchemaForType(t *testing.T) {
 		BirthDate   time.Time    `json:"birth_date,omitempty"`
 		YearOfBirth string       `json:"year_of_birth,omitempty"`
 		Metadata    float64      `json:"metadata,omitempty"`
-		FavColor    string       `json:"fav_color,omitempty"`
+		FavColor    string       `json:"fav_color,omitempty" required:"true" enum:"RED,BLUE"`
 	}
 
 	user := &TestUser{}

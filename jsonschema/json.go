@@ -130,7 +130,7 @@ func reflectSchemaObject(t reflect.Type) (*Definition, error) {
 		var required = true
 		if jsonTag == "" {
 			if field.Anonymous {
-				skip = true //无jsonTag且为组合成员，标记跳过
+				skip = true // 无jsonTag且为组合成员，标记跳过
 			}
 			jsonTag = field.Name
 		} else if strings.HasSuffix(jsonTag, ",omitempty") {
@@ -158,11 +158,16 @@ func reflectSchemaObject(t reflect.Type) (*Definition, error) {
 			item.Description = jsonTag // 如果没有描述，用jsonTag
 		}
 
+		if tmp := field.Tag.Get("enum"); tmp != "" {
+			item.Enum = strings.Split(tmp, ",")
+		}
+
 		properties[jsonTag] = *item
 
 		if s := field.Tag.Get("required"); s != "" {
 			required, _ = strconv.ParseBool(s)
 		}
+
 		if required {
 			requiredFields = append(requiredFields, jsonTag)
 		}

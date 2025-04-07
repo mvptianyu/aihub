@@ -77,6 +77,8 @@ type IProviderHub interface {
 	GetProviderList(names ...string) []IProvider
 	GetProvider(name string) IProvider
 	SetProvider(cfg *ProviderConfig) (IProvider, error)
+	SetProviderByYamlData(yamlData []byte) (IProvider, error)
+	SetProviderByYamlFile(yamlFile string) (IProvider, error)
 }
 
 type IAgentHub interface {

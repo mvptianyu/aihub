@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.7
 
 require (
-	github.com/mark3labs/mcp-go v0.15.0
+	github.com/mark3labs/mcp-go v0.18.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/tidwall/gjson v1.18.0
 	golang.org/x/time v0.10.0

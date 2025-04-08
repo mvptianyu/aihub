@@ -18,6 +18,17 @@ type providerHub struct {
 	lock sync.RWMutex
 }
 
+func (h *providerHub) GetAllNameList() []string {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+
+	ret := make([]string, 0)
+	for name, _ := range h.providers {
+		ret = append(ret, name)
+	}
+	return ret
+}
+
 func (h *providerHub) GetProviderList(names ...string) []IProvider {
 	h.lock.RLock()
 	defer h.lock.RUnlock()

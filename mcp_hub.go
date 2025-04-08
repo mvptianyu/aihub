@@ -10,61 +10,25 @@ import (
 	"encoding/json"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mvptianyu/aihub/jsonschema"
-	"log"
 	"sync"
-	"time"
 )
 
 type mcpHub struct {
-	cliMaps    map[string]*client.SSEMCPClient // svraddr => cli
-	toolMaps   map[string][]ToolFunction       // svraddr => []ToolFunction
-	fnNameMaps map[string]*client.SSEMCPClient // funcname => cli
+	clientMaps map[string]*mcpClient // svraddr => client
+	fnMaps     map[string]*mcpClient // funcName => client
 
 	lock sync.RWMutex
 }
 
-func (m *mcpHub) cronUpdateTools() {
-	// 定时更新tools
-	ticker := time.NewTicker(time.Minute)
-	for range ticker.C {
-		m.lock.Lock()
-		defer m.lock.Unlock()
-		for addr, cli := range m.cliMaps {
-			if toolFunctions, err1 := m.updateTools(cli, addr); err1 == nil {
-				m.toolMaps[addr] = toolFunctions
-				for _, toolFunction := range toolFunctions {
-					m.fnNameMaps[toolFunction.Name] = cli
-				}
-			}
-		}
+func (m *mcpHub) GetAllNameList() []string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	ret := make([]string, 0)
+	for name, _ := range m.clientMaps {
+		ret = append(ret, name)
 	}
-}
-
-func (m *mcpHub) updateTools(cli *client.SSEMCPClient, addr string) (toolFunctions []ToolFunction, err error) {
-	var toolRes *mcp.ListToolsResult
-	toolRes, err = cli.ListTools(context.Background(), mcp.ListToolsRequest{})
-	if err != nil {
-		log.Printf("RegisterMCPService::ListTools failed => addr:%s, err:%v\n", addr, err)
-		return nil, err
-	}
-
-	toolFunctions = make([]ToolFunction, 0)
-
-	// 转换tool
-	for _, tool := range toolRes.Tools {
-		toolFunction := ToolFunction{
-			Parameters: &jsonschema.Definition{},
-		}
-		toolFunction.Name = tool.Name
-		toolFunction.Description = tool.Description
-
-		bs, _ := json.Marshal(tool.InputSchema)
-		json.Unmarshal(bs, toolFunction.Parameters)
-		toolFunctions = append(toolFunctions, toolFunction)
-	}
-
-	return toolFunctions, err
+	return ret
 }
 
 func (m *mcpHub) GetToolFunctions(addrs ...string) []ToolFunction {
@@ -73,8 +37,12 @@ func (m *mcpHub) GetToolFunctions(addrs ...string) []ToolFunction {
 
 	result := make([]ToolFunction, 0)
 	for _, addr := range addrs {
-		if m.toolMaps[addr] != nil {
-			result = append(result, m.toolMaps[addr]...)
+		if client, ok := m.clientMaps[addr]; ok {
+			err := client.CheckValid()
+			if err != nil {
+				continue
+			}
+			result = append(result, client.toolFunctions...)
 		}
 	}
 	return result
@@ -83,10 +51,13 @@ func (m *mcpHub) GetToolFunctions(addrs ...string) []ToolFunction {
 // 代理MCP请求
 func (c *mcpHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (rsp *mcp.CallToolResult, err error) {
 	c.lock.RLock()
-	cli := c.fnNameMaps[name]
+	cli := c.fnMaps[name]
 	c.lock.RUnlock()
 	if cli == nil {
 		return nil, ErrMCPClientNotMatch
+	}
+	if err = cli.CheckValid(); err != nil {
+		return nil, err
 	}
 
 	args := make(map[string]interface{})
@@ -144,8 +115,12 @@ func (h *mcpHub) GetClient(addrs ...string) []*client.SSEMCPClient {
 
 	ret := make([]*client.SSEMCPClient, 0)
 	for _, addr := range addrs {
-		if tmp, ok := h.cliMaps[addr]; ok {
-			ret = append(ret, tmp)
+		if client, ok := h.clientMaps[addr]; ok {
+			err := client.CheckValid()
+			if err != nil {
+				ret = append(ret, nil)
+			}
+			ret = append(ret, client.SSEMCPClient)
 		}
 	}
 	return ret
@@ -155,47 +130,16 @@ func (m *mcpHub) SetClient(addrs ...string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	var err error
-	var cli *client.SSEMCPClient
-	ctx := context.Background()
-
 	// 注册单例
 	for _, addr := range addrs {
-		if m.cliMaps[addr] != nil {
+		cli, err := newMCPClient(addr)
+		if err != nil {
 			continue
 		}
 
-		if cli, err = client.NewSSEMCPClient(addr); err != nil {
-			log.Printf("SetClient::NewSSEMCPClient failed => addr:%s, err:%v\n", addr, err)
-			return err
-		}
-
-		if err = cli.Start(ctx); err != nil {
-			log.Printf("SetClient::Start failed => addr:%s, err:%v\n", addr, err)
-			return err
-		}
-
-		// 初始化
-		initRequest := mcp.InitializeRequest{}
-		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-		initRequest.Params.ClientInfo = mcp.Implementation{
-			Name:    "aihub-mcp-client",
-			Version: "1.0.0",
-		}
-		if _, err = cli.Initialize(ctx, initRequest); err != nil {
-			log.Printf("SetClient::Initialize failed => addr:%s, err:%v\n", addr, err)
-			return err
-		}
-
-		toolFunctions, err1 := m.updateTools(cli, addr)
-		if err1 != nil {
-			return err1
-		}
-
-		m.cliMaps[addr] = cli
-		m.toolMaps[addr] = toolFunctions
-		for _, toolFunction := range toolFunctions {
-			m.fnNameMaps[toolFunction.Name] = cli
+		m.clientMaps[addr] = cli
+		for _, toolFunction := range cli.toolFunctions {
+			m.fnMaps[toolFunction.Name] = cli
 		}
 	}
 
@@ -206,13 +150,12 @@ func (h *mcpHub) DelClient(addrs ...string) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	for _, addr := range addrs {
-		if toolFunctions, ok := h.toolMaps[addr]; ok {
-			for _, toolFunction := range toolFunctions {
-				delete(h.fnNameMaps, toolFunction.Name)
+		if cli, ok := h.clientMaps[addr]; ok {
+			for _, toolFunction := range cli.toolFunctions {
+				delete(h.fnMaps, toolFunction.Name)
 			}
-			delete(h.toolMaps, addr)
 		}
-		delete(h.cliMaps, addr)
+		delete(h.clientMaps, addr)
 	}
 	return nil
 }

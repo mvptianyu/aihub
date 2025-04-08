@@ -39,6 +39,17 @@ type toolHub struct {
 	lock sync.RWMutex
 }
 
+func (h *toolHub) GetAllNameList() []string {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+
+	ret := make([]string, 0)
+	for name, _ := range h.toolEntrys {
+		ret = append(ret, name)
+	}
+	return ret
+}
+
 func (h *toolHub) GetTool(names ...string) []ToolEntry {
 	h.lock.RLock()
 	defer h.lock.RUnlock()

@@ -17,6 +17,17 @@ type middlewareHub struct {
 	lock sync.RWMutex
 }
 
+func (h *middlewareHub) GetAllNameList() []string {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+
+	ret := make([]string, 0)
+	for name, _ := range h.middlewares {
+		ret = append(ret, name)
+	}
+	return ret
+}
+
 func (h *middlewareHub) GetMiddleware(names ...string) []IMiddleware {
 	h.lock.RLock()
 	defer h.lock.RUnlock()

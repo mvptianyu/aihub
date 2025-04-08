@@ -6,7 +6,6 @@
 package aihub
 
 import (
-	"github.com/mark3labs/mcp-go/client"
 	"sync"
 )
 
@@ -38,16 +37,14 @@ func GetProviderHub() IProviderHub {
 
 // ================MCPHub================
 var defaultMCPHub *mcpHub
-var defaultMCPHubHubOnce sync.Once
+var defaultMCPHubOnce sync.Once
 
 func GetMCPHub() IMCPHub {
-	defaultMCPHubHubOnce.Do(func() {
+	defaultMCPHubOnce.Do(func() {
 		defaultMCPHub = &mcpHub{
-			cliMaps:    make(map[string]*client.SSEMCPClient),
-			toolMaps:   make(map[string][]ToolFunction),
-			fnNameMaps: make(map[string]*client.SSEMCPClient),
+			clientMaps: make(map[string]*mcpClient),
+			fnMaps:     make(map[string]*mcpClient),
 		}
-		go defaultMCPHub.cronUpdateTools()
 	})
 	return defaultMCPHub
 }

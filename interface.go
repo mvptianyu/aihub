@@ -55,12 +55,14 @@ type IMiddleware interface {
 
 // --------------
 type IMiddlewareHub interface {
+	GetAllNameList() []string
 	GetMiddleware(names ...string) []IMiddleware
 	DelMiddleware(names ...string) error
 	SetMiddleware(middlewares ...IMiddleware) error
 }
 
 type IToolHub interface {
+	GetAllNameList() []string
 	GetToolFunctions(names ...string) []ToolFunction
 	GetTool(names ...string) []ToolEntry
 	DelTool(names ...string) error
@@ -69,6 +71,7 @@ type IToolHub interface {
 }
 
 type IMCPHub interface {
+	GetAllNameList() []string
 	GetClient(addrs ...string) []*client.SSEMCPClient
 	DelClient(addrs ...string) error
 	SetClient(addrs ...string) error
@@ -77,6 +80,7 @@ type IMCPHub interface {
 }
 
 type IProviderHub interface {
+	GetAllNameList() []string
 	GetProviderList(names ...string) []IProvider
 	GetProvider(name string) IProvider
 	DelProvider(name string) error
@@ -86,6 +90,7 @@ type IProviderHub interface {
 }
 
 type IAgentHub interface {
+	GetAllNameList() []string
 	GetAgentList(names ...string) []IAgent
 	GetAgent(name string) IAgent
 	DelAgent(name string) error

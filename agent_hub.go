@@ -18,6 +18,17 @@ type agentHub struct {
 	lock sync.RWMutex
 }
 
+func (h *agentHub) GetAllNameList() []string {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+
+	ret := make([]string, 0)
+	for name, _ := range h.agents {
+		ret = append(ret, name)
+	}
+	return ret
+}
+
 func (h *agentHub) GetAgentList(names ...string) []IAgent {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
@@ -50,9 +61,6 @@ func (h *agentHub) DelAgent(name string) error {
 func (h *agentHub) SetAgent(cfg *AgentConfig) (IAgent, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	if _, ok := h.agents[cfg.Name]; ok {
-		delete(h.agents, cfg.Name) // 删除旧的
-	}
 
 	ag, err := newAgent(cfg)
 	if err != nil {

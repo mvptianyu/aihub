@@ -25,7 +25,7 @@ func newAgent(cfg *AgentConfig) (IAgent, error) {
 	if err := cfg.AutoFix(); err != nil {
 		return nil, err
 	}
-	
+
 	ag := &agent{
 		cfg:    cfg,
 		memory: newMemory(&cfg.AgentRuntimeCfg),
@@ -269,8 +269,8 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
 	// 1.MCP调用
 	rsp, err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
-	if err != nil && rsp == nil {
-		return err
+	if err == nil && rsp != nil {
+		return nil
 	}
 
 	// 2.ToolCall本地调用

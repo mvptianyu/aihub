@@ -15,4 +15,5 @@ var (
 	ErrHTTPRequestURLInvalid       = errors.New("http request url invalid")
 	ErrHTTPRequestBodyInvalid      = errors.New("http request body invalid")
 	ErrHTTPRequestTimeout          = errors.New("http request timeout")
+	ErrToolCallResponseEmpty       = errors.New("tool call response empty")
 )

@@ -268,4 +268,8 @@ func (a *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, o
 	if err != nil {
 		output.Content = err.Error()
 	}
+
+	if output.Content == "" {
+		output.Content = ErrToolCallResponseEmpty.Error()
+	}
 }

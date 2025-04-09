@@ -121,7 +121,7 @@ func (opts *RunOptions) PrettyPrint() string {
 	}
 
 	if HasMarkdownSyntax(opts.FinalAnswer) {
-		output += opts.FinalAnswer
+		output += "**最终结果📤:**\n" + opts.FinalAnswer
 	} else {
 		// 最终结果无格式输出才替换
 		output += fmt.Sprintf(prettyCommonTpl, "最终结果📤", opts.FinalAnswer)

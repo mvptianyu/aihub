@@ -1,8 +1,8 @@
 package aihub
 
 import (
-	"fmt"
 	"gopkg.in/yaml.v3"
+	"log"
 	"regexp"
 )
 
@@ -37,12 +37,12 @@ func HasMarkdownSyntax(s string) bool {
 func YamlDataToProviderConfig(yamlData []byte) (*ProviderConfig, error) {
 	cfg := &ProviderConfig{}
 	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
-		fmt.Printf("Error ProviderConfig Unmarshal YAML data: %s => %v\n", string(yamlData), err)
+		log.Printf("Error ProviderConfig Unmarshal YAML data: %s => %v\n", string(yamlData), err)
 		return nil, err
 	}
 
 	if err := cfg.AutoFix(); err != nil {
-		fmt.Printf("Error ProviderConfig AutoFix: %s => %v\n", string(yamlData), err)
+		log.Printf("Error ProviderConfig AutoFix: %s => %v\n", string(yamlData), err)
 		return nil, err
 	}
 	return cfg, nil
@@ -51,12 +51,12 @@ func YamlDataToProviderConfig(yamlData []byte) (*ProviderConfig, error) {
 func YamlDataToAgentConfig(yamlData []byte) (*AgentConfig, error) {
 	cfg := &AgentConfig{}
 	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
-		fmt.Printf("Error AgentConfig Unmarshal YAML data: %s => %v\n", string(yamlData), err)
+		log.Printf("Error AgentConfig Unmarshal YAML data: %s => %v\n", string(yamlData), err)
 		return nil, err
 	}
 
 	if err := cfg.AutoFix(); err != nil {
-		fmt.Printf("Error AgentConfig AutoFix: %s => %v\n", string(yamlData), err)
+		log.Printf("Error AgentConfig AutoFix: %s => %v\n", string(yamlData), err)
 		return nil, err
 	}
 	return cfg, nil

@@ -1,7 +1,7 @@
 package aihub
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -77,7 +77,7 @@ func (h *agentHub) SetAgentByYamlFile(yamlFile string) (IAgent, error) {
 	// 读取 YAML 文件内容
 	yamlData, err := os.ReadFile(filepath.Clean(yamlFile))
 	if err != nil {
-		fmt.Printf("Error reading YAML file: %s => %v\n", yamlFile, err)
+		log.Printf("Error reading YAML file: %s => %v\n", yamlFile, err)
 		return nil, err
 	}
 	return h.SetAgentByYamlData(yamlData)

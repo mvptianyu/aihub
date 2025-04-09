@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -42,7 +42,7 @@ func HTTPCall(surl string, method string, req interface{}, reqHeader *http.Heade
 		}
 
 		if err1 != nil {
-			fmt.Printf("HTTPCall err => [surl]:%s, [err]:%v, [req]:%v\n", surl, err1, req)
+			log.Printf("HTTPCall err => [surl]:%s, [err]:%v, [req]:%v\n", surl, err1, req)
 		}
 	}()
 

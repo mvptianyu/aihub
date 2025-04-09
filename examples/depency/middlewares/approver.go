@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: tools
-@File : approve.go
-*/
 package middlewares
 
 import (
@@ -35,7 +30,7 @@ func (m *Approver) Name() string {
 	return "approver"
 }
 
-// SubmitApplication 提交授权申请
+// BeforeProcessing 提交授权申请
 func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
 	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
 	requestID := ""
@@ -72,7 +67,7 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.Mess
 	return nil
 }
 
-// SubmitApplication 提交授权申请
+// OnProcessing 提交授权申请
 func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
 	fmt.Printf("===> OnProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
 	requestID := ""
@@ -97,7 +92,7 @@ func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageT
 	return nil
 }
 
-// SubmitApplication 提交授权申请
+// AfterProcessing 提交授权申请
 func (m *Approver) AfterProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
 	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
 	return nil

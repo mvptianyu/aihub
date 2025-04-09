@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : httpcli.go
-*/
 package aihub
 
 import (
@@ -19,7 +14,7 @@ import (
 
 var defaultHTTPClient = &http.Client{}
 
-// Call 统一发送http请求方法入口
+// HTTPCall 统一发送http请求方法入口
 //
 // Examples:
 //

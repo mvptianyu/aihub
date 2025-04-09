@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: aihub
-@File : mcp_client.go
-*/
 package aihub
 
 import (

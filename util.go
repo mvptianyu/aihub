@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : util.go
-*/
 package aihub
 
 import (

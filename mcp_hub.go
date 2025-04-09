@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: aihub
-@File : provider_hub.go
-*/
 package aihub
 
 import (
@@ -37,22 +32,22 @@ func (m *mcpHub) GetToolFunctions(addrs ...string) []ToolFunction {
 
 	result := make([]ToolFunction, 0)
 	for _, addr := range addrs {
-		if client, ok := m.clientMaps[addr]; ok {
-			err := client.CheckValid()
+		if cli, ok := m.clientMaps[addr]; ok {
+			err := cli.CheckValid()
 			if err != nil {
 				continue
 			}
-			result = append(result, client.toolFunctions...)
+			result = append(result, cli.toolFunctions...)
 		}
 	}
 	return result
 }
 
-// 代理MCP请求
-func (c *mcpHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
-	c.lock.RLock()
-	cli := c.fnMaps[name]
-	c.lock.RUnlock()
+// ProxyCall 代理MCP请求
+func (m *mcpHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
+	m.lock.RLock()
+	cli := m.fnMaps[name]
+	m.lock.RUnlock()
 	if cli == nil {
 		err = ErrCallNameNotMatch
 		return
@@ -111,18 +106,18 @@ func (c *mcpHub) ProxyCall(ctx context.Context, name string, input string, outpu
 	return
 }
 
-func (h *mcpHub) GetClient(addrs ...string) []*client.SSEMCPClient {
-	h.lock.RLock()
-	defer h.lock.RUnlock()
+func (m *mcpHub) GetClient(addrs ...string) []*client.SSEMCPClient {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 
 	ret := make([]*client.SSEMCPClient, 0)
 	for _, addr := range addrs {
-		if client, ok := h.clientMaps[addr]; ok {
-			err := client.CheckValid()
+		if cli, ok := m.clientMaps[addr]; ok {
+			err := cli.CheckValid()
 			if err != nil {
 				ret = append(ret, nil)
 			}
-			ret = append(ret, client.SSEMCPClient)
+			ret = append(ret, cli.SSEMCPClient)
 		}
 	}
 	return ret
@@ -148,16 +143,51 @@ func (m *mcpHub) SetClient(addrs ...string) error {
 	return nil
 }
 
-func (h *mcpHub) DelClient(addrs ...string) error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+func (m *mcpHub) DelClient(addrs ...string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	for _, addr := range addrs {
-		if cli, ok := h.clientMaps[addr]; ok {
+		if cli, ok := m.clientMaps[addr]; ok {
 			for _, toolFunction := range cli.toolFunctions {
-				delete(h.fnMaps, toolFunction.Name)
+				delete(m.fnMaps, toolFunction.Name)
 			}
 		}
-		delete(h.clientMaps, addr)
+		delete(m.clientMaps, addr)
 	}
 	return nil
+}
+
+func (m *mcpHub) ConvertToOPENAPIConfig() string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	cfg := OPENAPIConfig{
+		OpenAPI: "3.0.0",
+		Info: OPENAPIInfo{
+			Title:       "MCPHub's API Document",
+			Description: "Generate by AIHub",
+			Version:     "1.0.0",
+		},
+		Paths: make(map[string]OPENAPIPathItem),
+		Tags:  make([]OPENAPITag, 0),
+	}
+
+	addrs := m.GetAllNameList()
+	for _, addr := range addrs {
+		cfg.Tags = append(cfg.Tags, OPENAPITag{
+			Name: addr,
+		})
+	}
+
+	for server, item := range m.clientMaps {
+		err := item.CheckValid()
+		if err != nil {
+			continue
+		}
+
+		cfg.AddToolFunction(item.toolFunctions, server)
+	}
+
+	bs, _ := json.Marshal(cfg)
+	return string(bs)
 }

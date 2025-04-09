@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : types.go
-*/
 package aihub
 
 // CreateChatCompletionReq 参见https://platform.openai.com/docs/api-reference/chat/create

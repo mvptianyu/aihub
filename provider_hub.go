@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: aihub
-@File : provider_hub.go
-*/
 package aihub
 
 import (

@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : config.go
-*/
 package aihub
 
 import (
@@ -39,7 +34,7 @@ func (cfg *AgentConfig) AutoFix() error {
 	return nil
 }
 
-// 运行时配置
+// AgentRuntimeCfg 运行时配置
 type AgentRuntimeCfg struct {
 	MemoryTimeout    int64   `json:"memory_timeout,omitempty" yaml:"memory_timeout,omitempty"`       // 历史消息缓存过期时间秒数
 	MaxStoreMemory   int     `json:"max_store_memory,omitempty" yaml:"max_store_memory,omitempty"`   // 限制总体缓存会话记忆条数

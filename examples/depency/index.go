@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: depency
-@File : index.go
-*/
 package depency
 
 import (
@@ -20,7 +15,7 @@ func Init() {
 }
 
 func InitProviders() {
-	_, err := aihub.GetProviderHub().SetProviderByYamlData([]byte(providers.OPENAI_CONFIG))
+	_, err := aihub.GetProviderHub().SetProviderByYamlData([]byte(providers.OPENAI_GPT_3_5_TURBO))
 	if err != nil {
 		panic(err)
 	}

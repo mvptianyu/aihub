@@ -15,7 +15,7 @@ type memory struct {
 
 func newMemory(cfg *AgentRuntimeCfg) IMemory {
 	ret := &memory{
-		messages: make(map[string][]*Message, 0),
+		messages: make(map[string][]*Message),
 		limit:    cfg.MaxStoreMemory,
 		timeout:  cfg.MemoryTimeout,
 	}
@@ -120,6 +120,6 @@ func (h *memory) Clear(opts *RunOptions) {
 	if _, ok := h.messages[opts.SessionID]; ok {
 		delete(h.messages, opts.SessionID)
 	} else {
-		h.messages = make(map[string][]*Message, 0) // 删除所有
+		h.messages = make(map[string][]*Message) // 删除所有
 	}
 }

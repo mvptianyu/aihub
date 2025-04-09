@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : agent.go
-*/
 package aihub
 
 import (
@@ -54,7 +49,7 @@ func (a *agent) initSystem() error {
 	return nil
 }
 
-// 重置对话
+// ResetMemory 重置对话记录
 func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 	options := a.NewRunOptions()
 	for _, opt := range opts {
@@ -177,22 +172,22 @@ func (a *agent) RunStream(ctx context.Context, input string, opts ...RunOptionFu
 	panic("implement me")
 }
 
-func (m *agent) GetToolFunctions() []ToolFunction {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if m.toolFunctions != nil {
-		return m.toolFunctions
+func (a *agent) GetToolFunctions() []ToolFunction {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	if a.toolFunctions != nil {
+		return a.toolFunctions
 	}
 
-	m.toolFunctions = make([]ToolFunction, 0)
-	if m.cfg.Mcps != nil && len(m.cfg.Mcps) > 0 {
-		m.toolFunctions = append(m.toolFunctions, GetMCPHub().GetToolFunctions(m.cfg.Mcps...)...)
+	a.toolFunctions = make([]ToolFunction, 0)
+	if a.cfg.Mcps != nil && len(a.cfg.Mcps) > 0 {
+		a.toolFunctions = append(a.toolFunctions, GetMCPHub().GetToolFunctions(a.cfg.Mcps...)...)
 	}
-	if m.cfg.Tools != nil && len(m.cfg.Tools) > 0 {
-		m.toolFunctions = append(m.toolFunctions, GetToolHub().GetToolFunctions(m.cfg.Tools...)...)
+	if a.cfg.Tools != nil && len(a.cfg.Tools) > 0 {
+		a.toolFunctions = append(a.toolFunctions, GetToolHub().GetToolFunctions(a.cfg.Tools...)...)
 	}
 
-	return m.toolFunctions
+	return a.toolFunctions
 }
 
 func (a *agent) NewRunOptions() *RunOptions {
@@ -203,8 +198,8 @@ func (a *agent) NewRunOptions() *RunOptions {
 	return options
 }
 
-func (m *agent) getToolCfg() []*Tool {
-	toolFunctions := m.GetToolFunctions()
+func (a *agent) getToolCfg() []*Tool {
+	toolFunctions := a.GetToolFunctions()
 
 	ret := make([]*Tool, 0)
 	for _, item := range toolFunctions {
@@ -262,7 +257,7 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 }
 
 // invokeToolCall 处理本步骤toolCall
-func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) {
+func (a *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) {
 	// 1.MCP调用
 	err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
 	if errors.Is(err, ErrCallNameNotMatch) {

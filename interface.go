@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : interface.go
-*/
 package aihub
 
 import (
@@ -30,7 +25,7 @@ type IAgent interface {
 	GetToolFunctions() []ToolFunction
 }
 
-// 会话记录
+// IMemory 会话记录
 type IMemory interface {
 	// GetSystemMsg 获取会话系统消息
 	GetSystemMsg() *Message
@@ -44,7 +39,7 @@ type IMemory interface {
 	Clear(opts *RunOptions)
 }
 
-// 调用拦截器
+// IMiddleware 调用拦截器
 type IMiddleware interface {
 	// BeforeProcessing 前处理
 	BeforeProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
@@ -52,7 +47,8 @@ type IMiddleware interface {
 	AfterProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
 }
 
-// --------------
+// ========HUB定义============
+
 type IMiddlewareHub interface {
 	GetAllNameList() []string
 	GetMiddleware(names ...string) []IMiddleware
@@ -67,6 +63,7 @@ type IToolHub interface {
 	DelTool(names ...string) error
 	SetTool(objs ...ToolEntry) error
 	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
+	ConvertToOPENAPIConfig() string
 }
 
 type IMCPHub interface {
@@ -76,6 +73,7 @@ type IMCPHub interface {
 	SetClient(addrs ...string) error
 	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
 	GetToolFunctions(addrs ...string) []ToolFunction
+	ConvertToOPENAPIConfig() string
 }
 
 type IProviderHub interface {

@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: aihub
-@File : provider_hub.go
-*/
 package aihub
 
 import (
@@ -160,9 +155,9 @@ func (h *toolHub) DelTool(names ...string) error {
 	return nil
 }
 
-// 代理ToolCall请求
-func (c *toolHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
-	tmpToolEntrys := c.GetTool(name)
+// ProxyCall 代理ToolCall请求
+func (h *toolHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
+	tmpToolEntrys := h.GetTool(name)
 	if tmpToolEntrys == nil || len(tmpToolEntrys) <= 0 {
 		return ErrCallNameNotMatch
 	}
@@ -191,4 +186,27 @@ func (c *toolHub) ProxyCall(ctx context.Context, name string, input string, outp
 	}
 
 	return err
+}
+
+func (h *toolHub) ConvertToOPENAPIConfig() string {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+
+	cfg := OPENAPIConfig{
+		OpenAPI: "3.0.0",
+		Info: OPENAPIInfo{
+			Title:       "ToolHub's API Document",
+			Description: "Generate by AIHub",
+			Version:     "1.0.0",
+		},
+		Paths: make(map[string]OPENAPIPathItem),
+	}
+
+	toolFunctions := make([]ToolFunction, 0)
+	for _, item := range h.toolEntrys {
+		toolFunctions = append(toolFunctions, item.toolFunction)
+	}
+	cfg.AddToolFunction(toolFunctions, "")
+	bs, _ := json.Marshal(cfg)
+	return string(bs)
 }

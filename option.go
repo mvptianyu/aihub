@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : option.go
-*/
 package aihub
 
 import (
@@ -134,14 +129,8 @@ func (opts *RunOptions) PrettyPrint() string {
 	return strings.TrimLeft(strings.Replace(output, "'''", "```", -1), "\n")
 }
 
-// ------------
+// RunOptionFunc 运行时选项
 type RunOptionFunc func(*RunOptions)
-
-func WithToolFunctions(tools []ToolFunction) RunOptionFunc {
-	return func(opts *RunOptions) {
-		opts.Tools = tools
-	}
-}
 
 func WithRuntimeCfg(runtimeCfg AgentRuntimeCfg) RunOptionFunc {
 	return func(opts *RunOptions) {

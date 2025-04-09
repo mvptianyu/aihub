@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : message.go
-*/
 package aihub
 
 import (

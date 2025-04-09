@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : ssestream.go
-*/
 package aihub
 
 import (

@@ -1,8 +1,3 @@
-/*
-@Project: aihub
-@Module: core
-@File : tool.go
-*/
 package aihub
 
 import (

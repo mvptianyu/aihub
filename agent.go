@@ -245,11 +245,7 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 		go func(i int, toolCall *MessageToolCall) {
 			defer wg.Done()
 
-			err1 := a.invokeToolCall(ctx, toolCall, toolMsgs[i])
-			if err1 != nil {
-				err = err1
-				return
-			}
+			a.invokeToolCall(ctx, toolCall, toolMsgs[i])
 		}(i, toolCall)
 	}
 	wg.Wait()
@@ -266,7 +262,7 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 }
 
 // invokeToolCall 处理本步骤toolCall
-func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
+func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) {
 	// 1.MCP调用
 	err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
 	if errors.Is(err, ErrCallNameNotMatch) {
@@ -274,5 +270,7 @@ func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, o
 		err = GetToolHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
 	}
 
-	return err
+	if err != nil {
+		output.Content = err.Error()
+	}
 }

@@ -49,28 +49,30 @@ func (m *mcpHub) GetToolFunctions(addrs ...string) []ToolFunction {
 }
 
 // 代理MCP请求
-func (c *mcpHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (rsp *mcp.CallToolResult, err error) {
+func (c *mcpHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
 	c.lock.RLock()
 	cli := c.fnMaps[name]
 	c.lock.RUnlock()
 	if cli == nil {
-		return nil, ErrMCPClientNotMatch
+		err = ErrCallNameNotMatch
+		return
 	}
 	if err = cli.CheckValid(); err != nil {
-		return nil, err
+		return
 	}
 
 	args := make(map[string]interface{})
 	if err = json.Unmarshal([]byte(input), &args); err != nil {
-		return nil, err
+		return
 	}
 
 	request := mcp.CallToolRequest{}
 	request.Params.Name = name
 	request.Params.Arguments = args
+	var rsp *mcp.CallToolResult
 	rsp, err = cli.CallTool(ctx, request)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	if len(rsp.Content) < 1 {

@@ -8,7 +8,6 @@ package aihub
 import (
 	"context"
 	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // IProvider 模型提供商相关能力
@@ -75,7 +74,7 @@ type IMCPHub interface {
 	GetClient(addrs ...string) []*client.SSEMCPClient
 	DelClient(addrs ...string) error
 	SetClient(addrs ...string) error
-	ProxyCall(ctx context.Context, name string, input string, output *Message) (rsp *mcp.CallToolResult, err error)
+	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
 	GetToolFunctions(addrs ...string) []ToolFunction
 }
 

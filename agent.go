@@ -268,12 +268,11 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 // invokeToolCall 处理本步骤toolCall
 func (m *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) error {
 	// 1.MCP调用
-	rsp, err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
-	if err == nil && rsp != nil {
-		return nil
+	err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
+	if errors.Is(err, ErrCallNameNotMatch) {
+		// 2.ToolCall本地调用
+		err = GetToolHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
 	}
 
-	// 2.ToolCall本地调用
-	err = GetToolHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
 	return err
 }

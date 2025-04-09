@@ -164,7 +164,7 @@ func (h *toolHub) DelTool(names ...string) error {
 func (c *toolHub) ProxyCall(ctx context.Context, name string, input string, output *Message) (err error) {
 	tmpToolEntrys := c.GetTool(name)
 	if tmpToolEntrys == nil || len(tmpToolEntrys) <= 0 {
-		return ErrToolFuncNotMatch
+		return ErrCallNameNotMatch
 	}
 	toolEntry := tmpToolEntrys[0]
 

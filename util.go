@@ -13,6 +13,7 @@ var markdownRegexps = []*regexp.Regexp{
 	regexp.MustCompile(`^- `),            // 无序列表
 	regexp.MustCompile(`^\d+\. `),        // 有序列表
 	regexp.MustCompile("```"),            // 代码块
+	regexp.MustCompile("'''"),            // 代码块
 	regexp.MustCompile(`!\[.*\]\(.*\)`),  // 图片
 	regexp.MustCompile(`\[(.*)\]\(.*\)`), // 链接
 	regexp.MustCompile(`^\|\s.*\s\|`),    // 表格

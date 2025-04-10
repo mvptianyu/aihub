@@ -166,9 +166,15 @@ func (a *agent) GetToolFunctions() []ToolFunction {
 	}
 
 	a.toolFunctions = make([]ToolFunction, 0)
-	if a.cfg.Mcps != nil && len(a.cfg.Mcps) > 0 {
-		a.toolFunctions = append(a.toolFunctions, GetMCPHub().GetToolFunctions(a.cfg.Mcps...)...)
+	// 全局tool白名单
+	if a.cfg.Tools == nil || len(a.cfg.Tools) <= 0 {
+		return a.toolFunctions
 	}
+
+	if a.cfg.Mcps != nil && len(a.cfg.Mcps) > 0 {
+		a.toolFunctions = append(a.toolFunctions, GetMCPHub().GetToolFunctions(a.cfg.Mcps, a.cfg.Tools)...)
+	}
+
 	if a.cfg.Tools != nil && len(a.cfg.Tools) > 0 {
 		a.toolFunctions = append(a.toolFunctions, GetToolHub().GetToolFunctions(a.cfg.Tools...)...)
 	}

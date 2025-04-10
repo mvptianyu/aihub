@@ -148,6 +148,9 @@ func reflectSchemaObject(t reflect.Type) (*Definition, error) {
 			for subTag, subDef := range item.Properties {
 				properties[subTag] = subDef
 			}
+			if item.Required != nil {
+				requiredFields = append(requiredFields, item.Required...)
+			}
 			continue
 		}
 

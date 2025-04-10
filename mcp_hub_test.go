@@ -18,7 +18,7 @@ func Test_mcpHub_SetMCP(t *testing.T) {
 		log.Panic(err)
 	}
 
-	tools := GetMCPHub().GetToolFunctions(mcpServerAddrs...)
+	tools := GetMCPHub().GetToolFunctions(mcpServerAddrs, nil)
 	fmt.Println(tools)
 
 	output := &Message{}

@@ -35,7 +35,7 @@ type IToolInput interface {
 
 type ToolInputBase struct {
 	input   string `json:"-"`
-	Session string `json:"_SESSION_" description:"可选，声明工具运行结果写入到session数据的key名"`
+	Session string `json:"_SESSION_" description:"记录session的key名,默认为空,无需设置" required:"true"`
 }
 
 func (t *ToolInputBase) GetRawInput() string {

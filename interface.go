@@ -80,7 +80,7 @@ type IMCPHub interface {
 	DelClient(addrs ...string) error
 	SetClient(addrs ...string) error
 	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
-	GetToolFunctions(addrs ...string) []ToolFunction
+	GetToolFunctions(addrs []string, names []string) []ToolFunction
 	ConvertToOPENAPIConfig() string
 }
 

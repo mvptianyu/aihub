@@ -13,10 +13,10 @@ import (
 
 type mcpClient struct {
 	*client.SSEMCPClient
-	toolFunctions []ToolFunction
-	addr          string
-	timeout       time.Duration
-	initAt        time.Time
+	toolFuncMaps map[string]ToolFunction
+	addr         string
+	timeout      time.Duration
+	initAt       time.Time
 
 	lock sync.RWMutex
 }
@@ -50,11 +50,11 @@ func newMCPClient(addr string) (*mcpClient, error) {
 	}
 
 	ret := &mcpClient{
-		SSEMCPClient:  cli,
-		toolFunctions: make([]ToolFunction, 0),
-		addr:          addr,
-		timeout:       defaultMCPClientTimeout,
-		initAt:        now,
+		SSEMCPClient: cli,
+		toolFuncMaps: make(map[string]ToolFunction),
+		addr:         addr,
+		timeout:      defaultMCPClientTimeout,
+		initAt:       now,
 	}
 
 	ret.updateTools()
@@ -69,8 +69,6 @@ func (m *mcpClient) updateTools() bool {
 		log.Printf("mcpClient::updateTools failed => addr:%s, err:%v\n", m.addr, err)
 		return false
 	}
-
-	toolFunctions := make([]ToolFunction, 0)
 
 	// 转换tool
 	for _, tool := range toolRes.Tools {
@@ -88,10 +86,9 @@ func (m *mcpClient) updateTools() bool {
 			Type:        jsonschema.String,
 			Description: "可选，声明工具运行结果写入到session数据的key名",
 		}
-
-		toolFunctions = append(toolFunctions, toolFunction)
+		toolFunction.Parameters.Required = append(toolFunction.Parameters.Required, ToolArgumentsRawSessionKey)
+		m.toolFuncMaps[toolFunction.Name] = toolFunction
 	}
-	m.toolFunctions = toolFunctions
 	return true
 }
 
@@ -110,8 +107,19 @@ func (m *mcpClient) CheckValid() error {
 	defer m.lock.Unlock()
 	m.SSEMCPClient = newCli.SSEMCPClient
 	m.initAt = newCli.initAt
-	m.toolFunctions = newCli.toolFunctions
+	m.toolFuncMaps = newCli.toolFuncMaps
 	m.addr = newCli.addr
 	m.timeout = newCli.timeout
 	return nil
+}
+
+func (m *mcpClient) GetToolFunctions() []ToolFunction {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	ret := make([]ToolFunction, 0)
+	for _, tool := range m.toolFuncMaps {
+		ret = append(ret, tool)
+	}
+	return ret
 }

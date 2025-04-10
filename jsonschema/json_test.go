@@ -219,6 +219,7 @@ func TestGenerateSchemaForType(t *testing.T) {
 
 	type TestUserSub struct {
 		YYYY string `json:"yyyy,omitempty" description:"yyyyyyyyyyy"`
+		ZZZZ string `json:"zzzz" description:"zzzzzzzzz" required:"true"`
 	}
 
 	type TestUser struct {

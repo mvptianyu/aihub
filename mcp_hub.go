@@ -26,18 +26,29 @@ func (m *mcpHub) GetAllNameList() []string {
 	return ret
 }
 
-func (m *mcpHub) GetToolFunctions(addrs ...string) []ToolFunction {
+func (m *mcpHub) GetToolFunctions(addrs []string, names []string) []ToolFunction {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
 	result := make([]ToolFunction, 0)
 	for _, addr := range addrs {
-		if cli, ok := m.clientMaps[addr]; ok {
-			err := cli.CheckValid()
-			if err != nil {
-				continue
+		// serverAddr过滤
+		cli, ok := m.clientMaps[addr]
+		if !ok || cli.CheckValid() != nil {
+			continue
+		}
+
+		if names == nil || len(names) <= 0 {
+			// 不过滤返回所有
+			result = append(result, cli.GetToolFunctions()...)
+			continue
+		}
+
+		// toolName过滤
+		for _, name := range names {
+			if tmp, ok2 := cli.toolFuncMaps[name]; ok2 {
+				result = append(result, tmp)
 			}
-			result = append(result, cli.toolFunctions...)
 		}
 	}
 	return result
@@ -135,7 +146,7 @@ func (m *mcpHub) SetClient(addrs ...string) error {
 		}
 
 		m.clientMaps[addr] = cli
-		for _, toolFunction := range cli.toolFunctions {
+		for _, toolFunction := range cli.GetToolFunctions() {
 			m.fnMaps[toolFunction.Name] = cli
 		}
 	}
@@ -148,7 +159,7 @@ func (m *mcpHub) DelClient(addrs ...string) error {
 	defer m.lock.Unlock()
 	for _, addr := range addrs {
 		if cli, ok := m.clientMaps[addr]; ok {
-			for _, toolFunction := range cli.toolFunctions {
+			for _, toolFunction := range cli.GetToolFunctions() {
 				delete(m.fnMaps, toolFunction.Name)
 			}
 		}
@@ -185,7 +196,7 @@ func (m *mcpHub) ConvertToOPENAPIConfig() string {
 			continue
 		}
 
-		cfg.AddToolFunction(item.toolFunctions, server)
+		cfg.AddToolFunction(item.GetToolFunctions(), server)
 	}
 
 	bs, _ := json.Marshal(cfg)

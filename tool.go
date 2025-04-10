@@ -5,6 +5,11 @@ import (
 )
 
 const (
+	ToolArgumentsRawInputKey   = "_INPUT_"
+	ToolArgumentsRawSessionKey = "_SESSION_"
+)
+
+const (
 	ToolTypeFunction = "function"
 )
 
@@ -24,10 +29,13 @@ type ToolFunction struct {
 type IToolInput interface {
 	GetRawInput() string
 	SetRawInput(str string)
+	GetRawSession() string
+	SetRawSession(str string)
 }
 
 type ToolInputBase struct {
-	input string `json:"-"`
+	input   string `json:"-"`
+	Session string `json:"_SESSION_" description:"可选，声明工具运行结果写入到session数据的key名"`
 }
 
 func (t *ToolInputBase) GetRawInput() string {
@@ -36,4 +44,11 @@ func (t *ToolInputBase) GetRawInput() string {
 
 func (t *ToolInputBase) SetRawInput(str string) {
 	t.input = str
+}
+func (t *ToolInputBase) GetRawSession() string {
+	return t.Session
+}
+
+func (t *ToolInputBase) SetRawSession(str string) {
+	t.Session = str
 }

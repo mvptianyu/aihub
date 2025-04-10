@@ -13,11 +13,11 @@ type IProvider interface {
 	CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *Stream[CreateChatCompletionRsp])
 }
 
-// IAgent interface defines the core capabilities required for an agent
+// IAgent 智能体
 type IAgent interface {
-	// Run executes the agent's main loop with the given input until a stop condition is met
-	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
-	// RunStream supports a streaming channel from a provider
+	// Run 执行Agent请求
+	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, ISession, error)
+	// RunStream 执行Agent请求，支持流式返回（Todo）
 	RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error)
 	// ResetMemory 重置会话记忆
 	ResetMemory(ctx context.Context, opts ...RunOptionFunc) error
@@ -27,16 +27,24 @@ type IAgent interface {
 
 // IMemory 会话记录
 type IMemory interface {
-	// GetSystemMsg 获取会话系统消息
-	GetSystemMsg() *Message
-	// SetSystemMsg 设置会话系统消息
-	SetSystemMsg(msg *Message)
 	// Push 塞入会话消息记录
 	Push(opts *RunOptions, msg ...*Message)
 	// GetLatest 获取最近会话消息记录
 	GetLatest(opts *RunOptions) []*Message
 	// Clear 清理指定消息记录
 	Clear(opts *RunOptions)
+}
+
+// ISession 会话session数据
+type ISession interface {
+	// SetSessionData 设置数据KV
+	SetSessionData(key string, value interface{})
+	// GetSessionData 获取数据KV
+	GetSessionData(key string) interface{}
+	// GetAllSessionData 获取所有数据KV
+	GetAllSessionData() map[string]interface{}
+	// GetSessionID 获取sessionid
+	GetSessionID() string
 }
 
 // IMiddleware 调用拦截器

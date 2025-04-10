@@ -29,7 +29,7 @@ func Method2(ctx context.Context, input *Method2Input, output *Message) (err err
 }
 
 func Test_toolEntryHub_SetToolEntry(t *testing.T) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	var err error
 
 	GetToolHub().SetTool(

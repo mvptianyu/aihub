@@ -2,8 +2,8 @@ package aihub
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	uuid "github.com/satori/go.uuid"
 	"sync"
 	"time"
 )
@@ -25,28 +25,19 @@ func newAgent(cfg *AgentConfig) (IAgent, error) {
 		cfg:    cfg,
 		memory: newMemory(&cfg.AgentRuntimeCfg),
 	}
-
-	// 初始化系统提示词
-	if err := ag.initSystem(); err != nil {
-		return nil, err
-	}
 	return ag, nil
 }
 
-func (a *agent) initSystem() error {
+// getSystemMsg 获取系统消息
+func (a *agent) getSystemMsg(opts *RunOptions) *Message {
 	if a.cfg.SystemPrompt == "" {
 		return nil
 	}
 
-	sysMsg := &Message{
+	return &Message{
 		Role:    MessageRoleSystem,
-		Content: a.cfg.SystemPrompt,
+		Content: opts.FixMessageContent(MessageRoleSystem, a.cfg.SystemPrompt),
 	}
-
-	options := a.NewRunOptions()
-	sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
-	a.memory.SetSystemMsg(sysMsg)
-	return nil
 }
 
 // ResetMemory 重置对话记录
@@ -60,18 +51,15 @@ func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 	return nil
 }
 
-func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
+func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, ISession, error) {
 	providerIns := GetProviderHub().GetProvider(a.cfg.Provider)
 	if providerIns == nil {
-		return nil, "", ErrConfiguration
+		return nil, "", nil, ErrConfiguration
 	}
 
 	options := a.NewRunOptions()
 	for _, opt := range opts {
 		opt(options)
-	}
-	if options.SessionID == "" {
-		options.SessionID = uuid.NewV4().String()
 	}
 	options.Question = input
 
@@ -101,8 +89,12 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 				return
 			}
 
+			messages := make([]*Message, 0)
+			messages = append(messages, a.getSystemMsg(options))        // system
+			messages = append(messages, a.memory.GetLatest(options)...) // latest N
+
 			req := &CreateChatCompletionReq{
-				Messages:         a.memory.GetLatest(options),
+				Messages:         messages,
 				Tools:            a.getToolCfg(),
 				MaxTokens:        options.RuntimeCfg.MaxTokens,
 				FrequencyPenalty: options.RuntimeCfg.FrequencyPenalty,
@@ -113,12 +105,6 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 			// 结束词规则
 			if options.RuntimeCfg.StopWords != "" {
 				req.Stop = options.RuntimeCfg.StopWords
-			}
-
-			// SysPrompt实时替换，例如Context
-			sysMsg := req.Messages[0]
-			if sysMsg.Role == MessageRoleSystem {
-				sysMsg.Content = options.FixMessageContent(MessageRoleSystem, sysMsg.Content)
 			}
 
 			rsp, err1 := providerIns.CreateChatCompletion(newCtx, req)
@@ -161,10 +147,10 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	select {
 	case <-newCtx.Done():
 		err = ErrAgentRunTimeout
-		return ret, content, err
 	case <-doneCh:
-		return ret, content, err
 	}
+
+	return ret, content, options.Session, err
 }
 
 func (a *agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error) {
@@ -194,6 +180,7 @@ func (a *agent) NewRunOptions() *RunOptions {
 	options := &RunOptions{
 		RuntimeCfg: a.cfg.AgentRuntimeCfg,
 		Tools:      a.GetToolFunctions(),
+		Session:    newSession(a.cfg.SessionData),
 	}
 	return options
 }
@@ -226,10 +213,11 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 		}
 	}
 
+	cnt := len(toolCalls)
 	wg := sync.WaitGroup{}
-	wg.Add(len(toolCalls))
+	wg.Add(cnt)
 	toolMsgs = make([]*Message, len(toolCalls))
-	for i := 0; i < len(toolCalls); i++ {
+	for i := 0; i < cnt; i++ {
 		toolCall := toolCalls[i]
 		toolMsgs[i] = &Message{
 			Role:         MessageRoleTool,
@@ -244,6 +232,16 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 		}(i, toolCall)
 	}
 	wg.Wait()
+
+	// 判断加入SessionKey
+	for i := 0; i < cnt; i++ {
+		toolCall := toolCalls[i]
+		tmpInput := &ToolInputBase{}
+		json.Unmarshal([]byte(toolCall.Function.Arguments), tmpInput)
+		if tmpInput.GetRawSession() != "" {
+			opts.SetSessionData(tmpInput.GetRawSession(), toolMsgs[i].Content)
+		}
+	}
 
 	// 后处理
 	for j := len(middlewares) - 1; j >= 0; j-- {

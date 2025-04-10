@@ -14,13 +14,13 @@ import (
 type DemoMiddleware struct{}
 
 func (m *DemoMiddleware) BeforeProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error {
-	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
+	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
 	return nil
 }
 
 // SubmitApplication 提交授权申请
 func (m *DemoMiddleware) AfterProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error {
-	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
+	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
 	return nil
 }
 

@@ -11,9 +11,10 @@ type AgentConfig struct {
 	Name            string           `json:"name" yaml:"name"` // agent名称
 	AgentRuntimeCfg `yaml:",inline"` // yaml解析inline结构
 
-	Tools       []string `json:"tools,omitempty" yaml:"tools,omitempty"`             // 用到的工具名
-	Mcps        []string `json:"mcps,omitempty" yaml:"mcps,omitempty"`               // 用到的MCP服务
-	Middlewares []string `json:"middlewares,omitempty" yaml:"middlewares,omitempty"` // 用到的Middleware
+	Tools       []string               `json:"tools,omitempty" yaml:"tools,omitempty"`               // 用到的工具名
+	Mcps        []string               `json:"mcps,omitempty" yaml:"mcps,omitempty"`                 // 用到的MCP服务
+	Middlewares []string               `json:"middlewares,omitempty" yaml:"middlewares,omitempty"`   // 用到的Middleware
+	SessionData map[string]interface{} `json:"session_data,omitempty" yaml:"session_data,omitempty"` // 用到的Session数据
 }
 
 func (cfg *AgentConfig) AutoFix() error {
@@ -30,6 +31,9 @@ func (cfg *AgentConfig) AutoFix() error {
 	if cfg.Middlewares == nil {
 		cfg.Middlewares = make([]string, 0)
 	}
+	if cfg.SessionData == nil {
+		cfg.SessionData = make(map[string]interface{})
+	}
 
 	return nil
 }
@@ -45,13 +49,12 @@ type AgentRuntimeCfg struct {
 	PresencePenalty  float64 `json:"presence_penalty,omitempty" yaml:"presence_penalty,omitempty"`   // 存在惩罚[-2.0~2.0]，值越大，模型生成的文本中重复出现的词就越少
 	Temperature      float64 `json:"temperature,omitempty" yaml:"temperature,omitempty"`             // 温度[0.0~2.0]，值越大，模型生成的文本灵活性更高
 
-	Provider     string                 `json:"provider,omitempty" yaml:"provider,omitempty"`           // LLM提供商配置
-	SystemPrompt string                 `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"` // 系统提示词
-	StopWords    string                 `json:"stop_words,omitempty" yaml:"stop_words,omitempty"`       // 结束退出词
-	RunTimeout   int64                  `json:"run_timeout,omitempty" yaml:"run_timeout,omitempty"`     // 执行超时秒数
-	Claim        string                 `json:"claim,omitempty" yaml:"claim,omitempty"`                 // 宣称文案，例如：本次返回由xxx提供
-	Debug        bool                   `json:"debug,omitempty" yaml:"debug,omitempty"`                 // debug输出标志，开启则输出具体工具调用过程信息
-	SessionData  map[string]interface{} `json:"session_data,omitempty" yaml:"session_data,omitempty"`   // session数据
+	Provider     string `json:"provider,omitempty" yaml:"provider,omitempty"`           // LLM提供商配置
+	SystemPrompt string `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"` // 系统提示词
+	StopWords    string `json:"stop_words,omitempty" yaml:"stop_words,omitempty"`       // 结束退出词
+	RunTimeout   int64  `json:"run_timeout,omitempty" yaml:"run_timeout,omitempty"`     // 执行超时秒数
+	Claim        string `json:"claim,omitempty" yaml:"claim,omitempty"`                 // 宣称文案，例如：本次返回由xxx提供
+	Debug        bool   `json:"debug,omitempty" yaml:"debug,omitempty"`                 // debug输出标志，开启则输出具体工具调用过程信息
 }
 
 func (cfg *AgentRuntimeCfg) AutoFix() error {
@@ -82,9 +85,6 @@ func (cfg *AgentRuntimeCfg) AutoFix() error {
 
 	if cfg.RunTimeout <= 0 || cfg.RunTimeout > 60*60 {
 		cfg.RunTimeout = 60 * 60
-	}
-	if cfg.SessionData == nil {
-		cfg.SessionData = make(map[string]interface{})
 	}
 
 	if cfg.Provider == "" {

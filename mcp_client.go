@@ -82,6 +82,13 @@ func (m *mcpClient) updateTools() bool {
 
 		bs, _ := json.Marshal(tool.InputSchema)
 		json.Unmarshal(bs, toolFunction.Parameters)
+
+		// 额外加入SessionKey参数
+		toolFunction.Parameters.Properties[ToolArgumentsRawSessionKey] = jsonschema.Definition{
+			Type:        jsonschema.String,
+			Description: "可选，声明工具运行结果写入到session数据的key名",
+		}
+
 		toolFunctions = append(toolFunctions, toolFunction)
 	}
 	m.toolFunctions = toolFunctions

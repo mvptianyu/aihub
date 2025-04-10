@@ -8,9 +8,10 @@ import (
 )
 
 type RunOptions struct {
-	RuntimeCfg  AgentRuntimeCfg // 运行时配置
-	Tools       []ToolFunction  // 用到的工具定义
-	SessionID   string
+	*Session
+	RuntimeCfg AgentRuntimeCfg // 运行时配置
+	Tools      []ToolFunction  // 用到的工具定义
+
 	Question    string
 	FinalAnswer string
 
@@ -27,6 +28,7 @@ type runOptionsStep struct {
 const (
 	defaultPromptReplaceContext = "{{context}}"
 	defaultPromptReplaceTools   = "{{tools}}"
+	defaultPromptReplaceSession = "{{session}}"
 )
 
 const prettyCommonTpl = `
@@ -54,6 +56,10 @@ func (opts *RunOptions) FixMessageContent(role MessageRoleType, content string) 
 		if opts != nil && opts.context != nil {
 			contentBS, _ := json.Marshal(opts.context)
 			content = strings.Replace(content, defaultPromptReplaceContext, string(contentBS), -1)
+		}
+		if opts.SessionData != nil && len(opts.SessionData) > 0 {
+			toolsBS, _ := json.Marshal(opts.SessionData)
+			content = strings.Replace(content, defaultPromptReplaceSession, string(toolsBS), -1)
 		}
 		if opts.Tools != nil && len(opts.Tools) > 0 {
 			toolsBS, _ := json.Marshal(opts.Tools)
@@ -152,17 +158,16 @@ func WithContext(context interface{}) RunOptionFunc {
 
 func WithSessionID(sessionID string) RunOptionFunc {
 	return func(opts *RunOptions) {
-		opts.SessionID = sessionID
+		if opts.Session != nil {
+			opts.Session.SessionID = sessionID
+		}
 	}
 }
 
 func WithSessionData(sessionData map[string]interface{}) RunOptionFunc {
 	return func(opts *RunOptions) {
-		if opts.RuntimeCfg.SessionData == nil {
-			opts.RuntimeCfg.SessionData = make(map[string]interface{})
-		}
-		for k, v := range sessionData {
-			opts.RuntimeCfg.SessionData[k] = v
+		if opts.Session != nil {
+			opts.Session.MergeSessionData(sessionData)
 		}
 	}
 }

@@ -32,7 +32,7 @@ func (m *Approver) Name() string {
 
 // BeforeProcessing 提交授权申请
 func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
-	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
+	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
 	requestID := ""
 	for _, call := range toolCalls {
 		requestID += "|" + call.Id
@@ -69,7 +69,7 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.Mess
 
 // OnProcessing 提交授权申请
 func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
-	fmt.Printf("===> OnProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
+	fmt.Printf("===> OnProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
 	requestID := ""
 	for _, call := range toolCalls {
 		requestID += "|" + call.Id
@@ -94,6 +94,6 @@ func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageT
 
 // AfterProcessing 提交授权申请
 func (m *Approver) AfterProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
-	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.RuntimeCfg.SessionData)
+	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
 	return nil
 }

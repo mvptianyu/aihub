@@ -12,10 +12,6 @@ import (
 	"sync"
 )
 
-const (
-	ToolArgumentsRawInputKey = "_INPUT_"
-)
-
 // ToolMethod 工具方法入口签名，Input派生自ToolInputBase
 type ToolMethod func(ctx context.Context, input IToolInput, output *Message) (err error)
 

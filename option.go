@@ -71,7 +71,7 @@ func (opts *RunOptions) FixMessageContent(role MessageRoleType, content string) 
 		}
 
 		if opts.RuntimeCfg.Claim != "" && content != "" {
-			content += fmt.Sprintf("\n--------```\n ℹ️ %s\n```\n", opts.RuntimeCfg.Claim)
+			content += fmt.Sprintf("\n----------\n```\nℹ️ %s\n```\n", opts.RuntimeCfg.Claim)
 		}
 	default:
 	}

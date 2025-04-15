@@ -80,13 +80,13 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	var err error
 	var doneCh = make(chan bool)
 	var endStep = &RunStep{
-		Action: defaultActionEnd,
-		State:  StateIdle,
+		StepType: StepType_End,
+		State:    RunState_Idle,
 	}
 	options.AddStep(&RunStep{
 		Question: input,
-		Action:   defaultActionStart,
-		State:    StateSucceed,
+		StepType: StepType_Start,
+		State:    RunState_Succeed,
 	})
 
 	go func() {
@@ -157,7 +157,7 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	}
 
 	if err != nil {
-		endStep.State = StateFailed
+		endStep.State = RunState_Failed
 	}
 	options.AddStep(endStep)
 	content = options.RenderFinalAnswer()
@@ -257,7 +257,8 @@ func (a *agent) processToolCalls(ctx context.Context, req *Message, opts *RunOpt
 		steps[i] = &RunStep{
 			Action:   toolCall.Function.Name,
 			Question: toolCall.Function.Arguments,
-			State:    StateRunning,
+			State:    RunState_Running,
+			StepType: StepType_Tool,
 		}
 		opts.AddStep(steps[i])
 
@@ -266,9 +267,9 @@ func (a *agent) processToolCalls(ctx context.Context, req *Message, opts *RunOpt
 
 			err1 := a.InvokeToolCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, rsp[i])
 			steps[i].Result = rsp[i].Content
-			steps[i].State = StateFailed
+			steps[i].State = RunState_Failed
 			if err1 == nil {
-				steps[i].State = StateSucceed
+				steps[i].State = RunState_Succeed
 			}
 		}(i, toolCall)
 	}

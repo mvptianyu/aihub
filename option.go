@@ -25,7 +25,8 @@ type RunStep struct {
 	Question string    `json:"_question_" yaml:"_question_" description:"该步骤结合用户请求和上下文的的请求输入提示词" required:"true"`                // 该步骤需要解决的问题
 	Think    string    `json:"_think_" yaml:"_think_" description:"该步骤结合用户请求和上下文的思考概述" required:"true"`                          // 该步骤的推理思考概要
 	Result   string    `json:"_result_,omitempty" yaml:"_result_,omitempty" description:"该步骤运行结果文字内容"`                           // 该步骤完成的输出结果
-	EndTime  time.Time `json:"-"`                                                                                                // 该步骤完成时间
+	EndTime  time.Time `json:",omitempty" yaml:",omitempty"`                                                                     // 该步骤完成时间
+	StepType StepType  `json:",omitempty" yaml:",omitempty"`                                                                     // 该步骤类别
 }
 
 func (r *RunStep) IsEmpty() bool {
@@ -52,15 +53,13 @@ func (r *RunStep) MergeWith(src *RunStep) {
 	if src.Result != "" {
 		r.Result = src.Result
 	}
-	if src.State > StateIdle {
+	if src.State > RunState_Idle {
 		r.State = src.State
 	}
+	if src.StepType > StepType_None {
+		r.StepType = src.StepType
+	}
 }
-
-const (
-	defaultActionStart = "_START_"
-	defaultActionEnd   = "_END_"
-)
 
 const (
 	defaultPromptReplaceContext = "{{context}}"
@@ -73,28 +72,55 @@ const (
 type RunState int
 
 const (
-	StateIdle RunState = iota
-	StateRunning
-	StateSucceed
-	StateFailed
-	StateError
+	RunState_Idle RunState = iota
+	RunState_Running
+	RunState_Succeed
+	RunState_Failed
+	RunState_Error
 )
 
 // String 返回状态的字符串表示
 func (s RunState) String() string {
 	switch s {
-	case StateIdle:
+	case RunState_Idle:
 		return "idle"
-	case StateRunning:
+	case RunState_Running:
 		return "running"
-	case StateSucceed:
+	case RunState_Succeed:
 		return "succeed"
-	case StateFailed:
+	case RunState_Failed:
 		return "failed"
-	case StateError:
+	case RunState_Error:
 		return "error"
 	default:
 		return "unknown"
+	}
+}
+
+// StepType 表示步骤类别
+type StepType int
+
+const (
+	StepType_None StepType = iota
+	StepType_Start
+	StepType_End
+	StepType_Tool
+	StepType_Agent
+)
+
+// String 返回状态的字符串表示
+func (s StepType) String() string {
+	switch s {
+	case StepType_Start:
+		return "START"
+	case StepType_End:
+		return "END"
+	case StepType_Tool:
+		return "TOOLCALL"
+	case StepType_Agent:
+		return "AGENTCALL"
+	default:
+		return "UNKNOWN"
 	}
 }
 
@@ -113,7 +139,7 @@ const prettyStepHasThinkTpl = `
 '''
 - **执行🏃‍：** 
 '''
-%s(%s)
+%s => %s(%s)
 '''
 - **结果✅：** 
 '''
@@ -125,7 +151,7 @@ const prettyStepTpl = `
 **第%d步➡️：**
 - **执行🏃‍：** 
 '''
-%s(%s)
+%s => %s(%s)
 '''
 - **结果✅：** 
 '''
@@ -176,6 +202,10 @@ func (opts *RunOptions) AddStep(src *RunStep) {
 	opts.lock.Lock()
 	defer opts.lock.Unlock()
 
+	if src.Action == AgentCallFuncName {
+		src.StepType = StepType_Agent
+	}
+
 	tmp1 := &RunStep{}
 	tmp2 := &RunStep{}
 	if src.Result != "" {
@@ -201,10 +231,10 @@ func (opts *RunOptions) RenderFinalAnswer() string {
 
 	output := ""
 	for idx, step := range opts.steps {
-		switch step.Action {
-		case defaultActionStart:
+		switch step.StepType {
+		case StepType_Start:
 			// output += fmt.Sprintf(prettyCommonTpl, "用户问题🤔", step.Question)
-		case defaultActionEnd:
+		case StepType_End:
 			if HasMarkdownSyntax(step.Result) {
 				output += "**最终结果📤:**\n" + step.Result
 			} else {
@@ -214,9 +244,9 @@ func (opts *RunOptions) RenderFinalAnswer() string {
 		default:
 			if opts.RuntimeCfg.Debug {
 				if step.Think != "" {
-					output += fmt.Sprintf(prettyStepHasThinkTpl, idx, step.Think, step.Action, step.Question, step.Result)
+					output += fmt.Sprintf(prettyStepHasThinkTpl, idx, step.Think, step.StepType.String(), step.Action, step.Question, step.Result)
 				} else {
-					output += fmt.Sprintf(prettyStepTpl, idx, step.Action, step.Question, step.Result)
+					output += fmt.Sprintf(prettyStepTpl, idx, step.StepType.String(), step.Action, step.Question, step.Result)
 				}
 			}
 		}

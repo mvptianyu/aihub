@@ -69,6 +69,8 @@ func GetManus() IAgent {
 }
 
 // =======AgentCall注册==========
+const AgentCallFuncName = "AgentCall"
+
 type AgentCallReq struct {
 	ToolInputBase
 	RunStep `yaml:",inline"`

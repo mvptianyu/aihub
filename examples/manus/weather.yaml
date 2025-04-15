@@ -1,0 +1,8 @@
+llm: gpt-3.5-turbo
+claim: 本结果由MMS AI Agent自动生成
+name: weather
+description: 日常天气助手agent
+system_prompt: |
+  你是一位日常天气助手，可以根据用户需求及上下文进行相关工具查询和操作。
+tools:
+  - GetWeather

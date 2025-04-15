@@ -28,6 +28,35 @@ type RunStep struct {
 	EndTime  time.Time `json:"-"`                                                                                                // 该步骤完成时间
 }
 
+func (r *RunStep) IsEmpty() bool {
+	if r == nil {
+		return true
+	}
+
+	return r.Think == "" && r.Action == "" && r.Question == "" && r.Result == ""
+}
+
+func (r *RunStep) MergeWith(src *RunStep) {
+	if src == nil {
+		return
+	}
+	if src.Action != "" {
+		r.Action = src.Action
+	}
+	if src.Question != "" {
+		r.Question = src.Question
+	}
+	if src.Think != "" {
+		r.Think = src.Think
+	}
+	if src.Result != "" {
+		r.Result = src.Result
+	}
+	if src.State > StateIdle {
+		r.State = src.State
+	}
+}
+
 const (
 	defaultActionStart = "_START_"
 	defaultActionEnd   = "_END_"
@@ -143,23 +172,27 @@ func (opts *RunOptions) CheckStepQuit() bool {
 	return len(opts.steps) > opts.RuntimeCfg.MaxStepQuit
 }
 
-func (opts *RunOptions) AddStep(ori *RunStep) *RunStep {
+func (opts *RunOptions) AddStep(src *RunStep) {
 	opts.lock.Lock()
 	defer opts.lock.Unlock()
 
-	if ori.Result == "" {
-		return nil
+	tmp1 := &RunStep{}
+	tmp2 := &RunStep{}
+	if src.Result != "" {
+		json.Unmarshal([]byte(src.Result), tmp1) // 兼容AgentCall模式
+	}
+	if src.Question != "" {
+		json.Unmarshal([]byte(src.Question), tmp2) // 兼容AgentCall模式
 	}
 
-	ret := &RunStep{}
-	json.Unmarshal([]byte(ori.Result), ret) // 兼容AgentCall模式
-	if ret.Result == "" {
-		ret = ori
+	if !tmp1.IsEmpty() {
+		src.MergeWith(tmp1)
+	} else if !tmp2.IsEmpty() {
+		src.MergeWith(tmp2)
 	}
-	ret.EndTime = time.Now()
 
-	opts.steps = append(opts.steps, ret)
-	return ret
+	src.EndTime = time.Now()
+	opts.steps = append(opts.steps, src)
 }
 
 func (opts *RunOptions) RenderFinalAnswer() string {
@@ -181,9 +214,9 @@ func (opts *RunOptions) RenderFinalAnswer() string {
 		default:
 			if opts.RuntimeCfg.Debug {
 				if step.Think != "" {
-					output += fmt.Sprintf(prettyStepHasThinkTpl, idx+1, step.Think, step.Action, step.Question, step.Result)
+					output += fmt.Sprintf(prettyStepHasThinkTpl, idx, step.Think, step.Action, step.Question, step.Result)
 				} else {
-					output += fmt.Sprintf(prettyStepTpl, idx+1, step.Action, step.Question, step.Result)
+					output += fmt.Sprintf(prettyStepTpl, idx, step.Action, step.Question, step.Result)
 				}
 			}
 		}
@@ -209,6 +242,12 @@ func WithRuntimeCfg(runtimeCfg AgentRuntimeCfg) RunOptionFunc {
 func WithDebug(debug bool) RunOptionFunc {
 	return func(opts *RunOptions) {
 		opts.RuntimeCfg.Debug = debug
+	}
+}
+
+func WithSystemPrompt(systemPrompt string) RunOptionFunc {
+	return func(opts *RunOptions) {
+		opts.RuntimeCfg.SystemPrompt = systemPrompt
 	}
 }
 

@@ -6,7 +6,12 @@ import (
 	"github.com/mvptianyu/aihub"
 )
 
-func GetWeather(ctx context.Context, input *aihub.ToolInputBase, output *aihub.Message) (err error) {
+type WeatherReq struct {
+	aihub.ToolInputBase
+	City string `json:"city"`
+}
+
+func GetWeather(ctx context.Context, input *WeatherReq, output *aihub.Message) (err error) {
 	fmt.Printf("===> GetWeather input: %v\n", input)
 	/*
 		fmt.Println("即将调用工具：GetWeather，参数为：" + input.GetRawInput() + "，输入 'OK' 继续:")
@@ -19,7 +24,7 @@ func GetWeather(ctx context.Context, input *aihub.ToolInputBase, output *aihub.M
 		}
 	*/
 
-	switch input.GetRawInput() {
+	switch input.City {
 	case "深圳":
 		output.Content = "30度,天晴"
 		return

@@ -86,7 +86,7 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	options.AddStep(&RunStep{
 		Question: input,
 		Action:   defaultActionStart,
-		State:    StateIdle,
+		State:    StateSucceed,
 	})
 
 	go func() {
@@ -254,14 +254,10 @@ func (a *agent) processToolCalls(ctx context.Context, req *Message, opts *RunOpt
 			MultiContent: make([]*MessageContentPart, 0),
 		}
 
-		steps[i] = &RunStep{}
-		json.Unmarshal([]byte(toolCall.Function.Arguments), steps[i]) // 兼容AgentCall模式
-		if steps[i].Result == "" {
-			steps[i] = &RunStep{
-				Action:   toolCall.Function.Name,
-				Question: toolCall.Function.Arguments,
-				State:    StateRunning,
-			}
+		steps[i] = &RunStep{
+			Action:   toolCall.Function.Name,
+			Question: toolCall.Function.Arguments,
+			State:    StateRunning,
 		}
 		opts.AddStep(steps[i])
 

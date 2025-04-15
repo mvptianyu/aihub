@@ -19,6 +19,11 @@ func InitLLMs() {
 	if err != nil {
 		panic(err)
 	}
+
+	_, err = aihub.GetLLMHub().SetLLMByYamlData([]byte(llms.OPENAI_GPT_4O))
+	if err != nil {
+		panic(err)
+	}
 }
 
 func InitMCPs() {

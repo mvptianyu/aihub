@@ -16,5 +16,3 @@ tools:
   - GetSong
 mcps:
   - http://localhost:8811/sse
-middlewares:
-  - Approver

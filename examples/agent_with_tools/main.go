@@ -20,7 +20,7 @@ func main() {
 
 	_, txt, _, err := myAgent.Run(
 		ctx,
-		"深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名，然后帮我查一下sg-11134201-7rd6w-m7qad2oq19n848的日志",
+		"深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名",
 		aihub.WithContext("城市参数中随机50%拼接“中国”字符串"),
 		aihub.WithDebug(true),
 		aihub.WithSessionID(""),

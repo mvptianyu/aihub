@@ -13,19 +13,19 @@ import (
 const chatCompletionsAPI = "/chat/completions"
 
 // LLM提供商
-type provider struct {
-	cfg *ProviderConfig
+type llm struct {
+	cfg *LLMConfig
 
 	client  *http.Client
 	limiter *rate.Limiter
 }
 
-func newProvider(cfg *ProviderConfig) (IProvider, error) {
+func newLLM(cfg *LLMConfig) (ILLM, error) {
 	if err := cfg.AutoFix(); err != nil {
 		return nil, err
 	}
 
-	ins := &provider{
+	ins := &llm{
 		cfg:    cfg,
 		client: &http.Client{},
 	}
@@ -33,19 +33,23 @@ func newProvider(cfg *ProviderConfig) (IProvider, error) {
 	return ins, nil
 }
 
-func (p *provider) checkRateLimit() (err error) {
+func (p *llm) checkRateLimit() (err error) {
 	if p.limiter != nil && !p.limiter.Allow() {
 		return ErrProviderRateLimit
 	}
 	return nil
 }
 
-func (p *provider) CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error) {
+func (p *llm) GetBriefInfo() BriefInfo {
+	return p.cfg.BriefInfo
+}
+
+func (p *llm) CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error) {
 	if request.Stream {
 		request.Stream = false
 	}
 	if request.Model == "" {
-		request.Model = p.cfg.Model
+		request.Model = p.cfg.Name
 	}
 
 	if err = p.checkRateLimit(); err != nil {
@@ -77,12 +81,12 @@ func (p *provider) CreateChatCompletion(ctx context.Context, request *CreateChat
 	return
 }
 
-func (p *provider) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *Stream[CreateChatCompletionRsp]) {
+func (p *llm) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *Stream[CreateChatCompletionRsp]) {
 	if request.Stream == false {
 		request.Stream = true
 	}
 	if request.Model == "" {
-		request.Model = p.cfg.Model
+		request.Model = p.cfg.Name
 	}
 
 	if err := p.checkRateLimit(); err != nil {

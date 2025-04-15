@@ -34,15 +34,15 @@ func HasMarkdownSyntax(s string) bool {
 	return false
 }
 
-func YamlDataToProviderConfig(yamlData []byte) (*ProviderConfig, error) {
-	cfg := &ProviderConfig{}
+func YamlDataToLLMConfig(yamlData []byte) (*LLMConfig, error) {
+	cfg := &LLMConfig{}
 	if err := yaml.Unmarshal(yamlData, cfg); err != nil {
-		log.Printf("Error ProviderConfig Unmarshal YAML data: %s => %v\n", string(yamlData), err)
+		log.Printf("Error LLMConfig Unmarshal YAML data: %s => %v\n", string(yamlData), err)
 		return nil, err
 	}
 
 	if err := cfg.AutoFix(); err != nil {
-		log.Printf("Error ProviderConfig AutoFix: %s => %v\n", string(yamlData), err)
+		log.Printf("Error LLMConfig AutoFix: %s => %v\n", string(yamlData), err)
 		return nil, err
 	}
 	return cfg, nil

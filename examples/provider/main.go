@@ -12,10 +12,13 @@ func main() {
 	depency.Init() // 初始化
 
 	ctx := context.Background()
-	myProvider, err := aihub.GetProviderHub().SetProvider(&aihub.ProviderConfig{
-		Name:    "openai",
-		Model:   "gpt-3.5-turbo",
-		BaseURL: "https://api.openai.com",
+	myLLM, err := aihub.GetLLMHub().SetLLM(&aihub.LLMConfig{
+		BriefInfo: aihub.BriefInfo{
+			Name:        "gpt-3.5-turbo",
+			Description: "openai's gpt-3.5-turbo LLM model api service",
+		},
+		Provider: "openai",
+		BaseURL:  "https://api.openai.com",
 	})
 
 	if err != nil {
@@ -33,20 +36,20 @@ func main() {
 		Model: "gpt-3.5-turbo",
 	}
 
-	CreateChatCompletion(ctx, myProvider, req)
+	CreateChatCompletion(ctx, myLLM, req)
 	// CreateChatCompletionStream(ctx, myProvider, req)
 }
 
-func CreateChatCompletion(ctx context.Context, myProvider aihub.IProvider, req *aihub.CreateChatCompletionReq) {
-	rsp, err := myProvider.CreateChatCompletion(ctx, req)
+func CreateChatCompletion(ctx context.Context, myLLM aihub.ILLM, req *aihub.CreateChatCompletionReq) {
+	rsp, err := myLLM.CreateChatCompletion(ctx, req)
 
 	fmt.Println(err)
 	fmt.Println("=======================")
 	fmt.Println(rsp.Choices[0])
 }
 
-func CreateChatCompletionStream(ctx context.Context, myProvider aihub.IProvider, req *aihub.CreateChatCompletionReq) {
-	stream := myProvider.CreateChatCompletionStream(ctx, req)
+func CreateChatCompletionStream(ctx context.Context, myLLM aihub.ILLM, req *aihub.CreateChatCompletionReq) {
+	stream := myLLM.CreateChatCompletionStream(ctx, req)
 
 	for stream.Next() {
 		data := stream.Current()

@@ -4,9 +4,9 @@ import "errors"
 
 var (
 	ErrUnknown                     = errors.New("unknown error")
-	ErrConfiguration               = errors.New("invalid agent or provider configuration")
+	ErrConfiguration               = errors.New("invalid agent or llm configuration")
 	ErrToolRegisterRepeat          = errors.New("tool function name register repeated")
-	ErrProviderRateLimit           = errors.New("provider trigger rate limit")
+	ErrProviderRateLimit           = errors.New("llm trigger rate limit")
 	ErrAgentRunTimeout             = errors.New("agent run timeout")
 	ErrCallNameNotMatch            = errors.New("not found matched call name with mcp/tool entry")
 	ErrMCPResponseEmpty            = errors.New("mcp call response empty")

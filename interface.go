@@ -5,8 +5,14 @@ import (
 	"github.com/mark3labs/mcp-go/client"
 )
 
-// IProvider 模型提供商相关能力
-type IProvider interface {
+type IBriefInfo interface {
+	GetBriefInfo() BriefInfo
+}
+
+// ILLM 模型相关能力
+type ILLM interface {
+	IBriefInfo
+
 	// CreateChatCompletion 创建Chat
 	CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error)
 	// CreateChatCompletionStream 创建Chat以及stream返回
@@ -15,6 +21,8 @@ type IProvider interface {
 
 // IAgent 智能体
 type IAgent interface {
+	IBriefInfo
+
 	// Run 执行Agent请求
 	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, ISession, error)
 	// RunStream 执行Agent请求，支持流式返回（Todo）
@@ -23,6 +31,8 @@ type IAgent interface {
 	ResetMemory(ctx context.Context, opts ...RunOptionFunc) error
 	// GetToolFunctions 获取工具配置
 	GetToolFunctions() []ToolFunction
+	// InvokeToolCall 调度指定工具命令
+	InvokeToolCall(ctx context.Context, name string, args string, output *Message) (err error)
 }
 
 // IMemory 会话记录
@@ -50,9 +60,9 @@ type ISession interface {
 // IMiddleware 调用拦截器
 type IMiddleware interface {
 	// BeforeProcessing 前处理
-	BeforeProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
+	BeforeProcessing(ctx context.Context, req *Message, rsp []*Message, opts *RunOptions) error
 	// AfterProcessing 后处理
-	AfterProcessing(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) error
+	AfterProcessing(ctx context.Context, req *Message, rsp []*Message, opts *RunOptions) error
 }
 
 // ========HUB定义============
@@ -84,14 +94,14 @@ type IMCPHub interface {
 	ConvertToOPENAPIConfig() string
 }
 
-type IProviderHub interface {
+type ILLMHub interface {
 	GetAllNameList() []string
-	GetProviderList(names ...string) []IProvider
-	GetProvider(name string) IProvider
-	DelProvider(name string) error
-	SetProvider(cfg *ProviderConfig) (IProvider, error)
-	SetProviderByYamlData(yamlData []byte) (IProvider, error)
-	SetProviderByYamlFile(yamlFile string) (IProvider, error)
+	GetLLMList(names ...string) []ILLM
+	GetLLM(name string) ILLM
+	DelLLM(name string) error
+	SetLLM(cfg *LLMConfig) (ILLM, error)
+	SetLLMByYamlData(yamlData []byte) (ILLM, error)
+	SetLLMByYamlFile(yamlFile string) (ILLM, error)
 }
 
 type IAgentHub interface {

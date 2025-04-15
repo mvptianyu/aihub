@@ -17,17 +17,17 @@ func GetAgentHub() IAgentHub {
 	return defaultAgentHub
 }
 
-// ================ProviderHub================
-var defaultProviderHub *providerHub
-var defaultProviderHubOnce sync.Once
+// ================LLMHub================
+var defaultLLMHub *llmHub
+var defaultLLMHubOnce sync.Once
 
-func GetProviderHub() IProviderHub {
-	defaultProviderHubOnce.Do(func() {
-		defaultProviderHub = &providerHub{
-			providers: make(map[string]IProvider),
+func GetLLMHub() ILLMHub {
+	defaultLLMHubOnce.Do(func() {
+		defaultLLMHub = &llmHub{
+			llms: make(map[string]ILLM),
 		}
 	})
-	return defaultProviderHub
+	return defaultLLMHub
 }
 
 // ================MCPHub================

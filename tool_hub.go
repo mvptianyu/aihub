@@ -93,7 +93,7 @@ func (h *toolHub) SetTool(objs ...ToolEntry) error {
 			continue
 		}
 
-		// 检查第一个参数是否为 context.Context 类型
+		// 检查第一个参数是否为 Context.Context 类型
 		if methodType.In(0) != reflect.TypeOf((*context.Context)(nil)).Elem() {
 			continue
 		}

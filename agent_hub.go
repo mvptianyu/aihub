@@ -8,7 +8,7 @@ import (
 )
 
 type agentHub struct {
-	agents map[string]IAgent // agent Name => IProvider
+	agents map[string]IAgent // agent Name => ILLM
 
 	lock sync.RWMutex
 }

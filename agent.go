@@ -36,13 +36,17 @@ func (a *agent) getSystemMsg(opts *RunOptions) *Message {
 
 	return &Message{
 		Role:    MessageRoleSystem,
-		Content: opts.FixMessageContent(MessageRoleSystem, a.cfg.SystemPrompt),
+		Content: opts.UpdateSystemPrompt(a.cfg.SystemPrompt),
 	}
+}
+
+func (a *agent) GetBriefInfo() BriefInfo {
+	return a.cfg.BriefInfo
 }
 
 // ResetMemory 重置对话记录
 func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
-	options := a.NewRunOptions()
+	options := a.newRunOptions()
 	for _, opt := range opts {
 		opt(options)
 	}
@@ -52,16 +56,15 @@ func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 }
 
 func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, ISession, error) {
-	providerIns := GetProviderHub().GetProvider(a.cfg.Provider)
+	providerIns := GetLLMHub().GetLLM(a.cfg.LLM)
 	if providerIns == nil {
 		return nil, "", nil, ErrConfiguration
 	}
 
-	options := a.NewRunOptions()
+	options := a.newRunOptions()
 	for _, opt := range opts {
 		opt(options)
 	}
-	options.Question = input
 
 	newCtx, cancel := context.WithTimeout(ctx, time.Duration(options.RuntimeCfg.RunTimeout)*time.Second)
 	defer cancel()
@@ -76,6 +79,15 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	var content = ""
 	var err error
 	var doneCh = make(chan bool)
+	var endStep = &RunStep{
+		Action: defaultActionEnd,
+		State:  StateIdle,
+	}
+	options.AddStep(&RunStep{
+		Question: input,
+		Action:   defaultActionStart,
+		State:    StateIdle,
+	})
 
 	go func() {
 		defer func() {
@@ -124,21 +136,15 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 			switch choice.FinishReason {
 			case ChatCompletionRspFinishReasonToolCalls:
 				// 处理tool调用
-				toolMsgs, err1 := a.processToolCalls(newCtx, choice.Message.ToolCalls, options)
+				toolMsgs, err1 := a.processToolCalls(newCtx, choice.Message, options)
 				if err1 != nil {
 					err = err1
 					return
 				}
-
-				options.AddStep(choice.Message.ToolCalls, toolMsgs)
 				a.memory.Push(options, toolMsgs...)
 			default:
 				ret = choice.Message
-				content = choice.Message.Content
-				options.FinalAnswer = choice.Message.Content
-
-				// 修正回复
-				content = options.FixMessageContent(MessageRoleAssistant, choice.Message.Content)
+				endStep.Result = choice.Message.Content
 				return
 			}
 		}
@@ -149,6 +155,12 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 		err = ErrAgentRunTimeout
 	case <-doneCh:
 	}
+
+	if err != nil {
+		endStep.State = StateFailed
+	}
+	options.AddStep(endStep)
+	content = options.RenderFinalAnswer()
 
 	return ret, content, options.Session, err
 }
@@ -182,13 +194,23 @@ func (a *agent) GetToolFunctions() []ToolFunction {
 	return a.toolFunctions
 }
 
-func (a *agent) NewRunOptions() *RunOptions {
+func (a *agent) newRunOptions() *RunOptions {
 	options := &RunOptions{
 		RuntimeCfg: a.cfg.AgentRuntimeCfg,
-		Tools:      a.GetToolFunctions(),
+		Tools:      a.getRelatedToolBriefInfos(),
 		Session:    newSession(a.cfg.SessionData),
 	}
 	return options
+}
+
+func (a *agent) getRelatedToolBriefInfos() []BriefInfo {
+	toolFunctions := a.GetToolFunctions()
+
+	ret := make([]BriefInfo, 0)
+	for _, item := range toolFunctions {
+		ret = append(ret, item.BriefInfo)
+	}
+	return ret
 }
 
 func (a *agent) getToolCfg() []*Tool {
@@ -205,7 +227,7 @@ func (a *agent) getToolCfg() []*Tool {
 }
 
 // processToolCalls 处理本步骤toolCalls
-func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCall, opts *RunOptions) (toolMsgs []*Message, err error) {
+func (a *agent) processToolCalls(ctx context.Context, req *Message, opts *RunOptions) (rsp []*Message, err error) {
 	middlewares := make([]IMiddleware, 0)
 	if a.cfg.Middlewares != nil {
 		middlewares = GetMiddlewareHub().GetMiddleware(a.cfg.Middlewares...)
@@ -214,45 +236,62 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 	// 前处理
 	for i := 0; i < len(middlewares); i++ {
 		middleware := middlewares[i]
-		if err = middleware.BeforeProcessing(ctx, toolCalls, opts); err != nil {
+		if err = middleware.BeforeProcessing(ctx, req, rsp, opts); err != nil {
 			return nil, err
 		}
 	}
 
-	cnt := len(toolCalls)
+	cnt := len(req.ToolCalls)
 	wg := sync.WaitGroup{}
 	wg.Add(cnt)
-	toolMsgs = make([]*Message, len(toolCalls))
+	rsp = make([]*Message, cnt)
+	steps := make([]*RunStep, cnt)
 	for i := 0; i < cnt; i++ {
-		toolCall := toolCalls[i]
-		toolMsgs[i] = &Message{
+		toolCall := req.ToolCalls[i]
+		rsp[i] = &Message{
 			Role:         MessageRoleTool,
 			ToolCallID:   toolCall.Id,
 			MultiContent: make([]*MessageContentPart, 0),
 		}
 
+		steps[i] = &RunStep{}
+		json.Unmarshal([]byte(toolCall.Function.Arguments), steps[i]) // 兼容AgentCall模式
+		if steps[i].Result == "" {
+			steps[i] = &RunStep{
+				Action:   toolCall.Function.Name,
+				Question: toolCall.Function.Arguments,
+				State:    StateRunning,
+			}
+		}
+		opts.AddStep(steps[i])
+
 		go func(i int, toolCall *MessageToolCall) {
 			defer wg.Done()
 
-			a.invokeToolCall(ctx, toolCall, toolMsgs[i])
+			err1 := a.InvokeToolCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, rsp[i])
+			steps[i].Result = rsp[i].Content
+			steps[i].State = StateFailed
+			if err1 == nil {
+				steps[i].State = StateSucceed
+			}
 		}(i, toolCall)
 	}
 	wg.Wait()
 
 	// 判断加入SessionKey
 	for i := 0; i < cnt; i++ {
-		toolCall := toolCalls[i]
+		toolCall := req.ToolCalls[i]
 		tmpInput := &ToolInputBase{}
 		json.Unmarshal([]byte(toolCall.Function.Arguments), tmpInput)
 		if tmpInput.GetRawSession() != "" {
-			opts.SetSessionData(tmpInput.GetRawSession(), toolMsgs[i].Content)
+			opts.SetSessionData(tmpInput.GetRawSession(), rsp[i].Content)
 		}
 	}
 
 	// 后处理
 	for j := len(middlewares) - 1; j >= 0; j-- {
 		middleware := middlewares[j]
-		if err = middleware.AfterProcessing(ctx, toolCalls, opts); err != nil {
+		if err = middleware.AfterProcessing(ctx, req, rsp, opts); err != nil {
 			return nil, err
 		}
 	}
@@ -260,20 +299,24 @@ func (a *agent) processToolCalls(ctx context.Context, toolCalls []*MessageToolCa
 	return
 }
 
-// invokeToolCall 处理本步骤toolCall
-func (a *agent) invokeToolCall(ctx context.Context, toolCall *MessageToolCall, output *Message) {
+// InvokeToolCall 处理本步骤toolCall
+func (a *agent) InvokeToolCall(ctx context.Context, name string, args string, output *Message) (err error) {
 	// 1.MCP调用
-	err := GetMCPHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
+	err = GetMCPHub().ProxyCall(ctx, name, args, output)
 	if errors.Is(err, ErrCallNameNotMatch) {
 		// 2.ToolCall本地调用
-		err = GetToolHub().ProxyCall(ctx, toolCall.Function.Name, toolCall.Function.Arguments, output)
+		err = GetToolHub().ProxyCall(ctx, name, args, output)
 	}
 
 	if err != nil {
 		output.Content = err.Error()
+		return
 	}
 
 	if output.Content == "" {
-		output.Content = ErrToolCallResponseEmpty.Error()
+		err = ErrToolCallResponseEmpty
+		output.Content = err.Error()
 	}
+
+	return
 }

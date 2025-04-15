@@ -19,10 +19,9 @@ type Tool struct {
 }
 
 type ToolFunction struct {
-	Name        string                 `json:"name" yaml:"name"`
-	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
-	Parameters  *jsonschema.Definition `json:"parameters,omitempty" yaml:"parameters,omitempty"`
-	Strict      bool                   `json:"strict,omitempty" yaml:"strict,omitempty"`
+	BriefInfo
+	Parameters *jsonschema.Definition `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	Strict     bool                   `json:"strict,omitempty" yaml:"strict,omitempty"`
 }
 
 // IToolInput 工具入参格式定义

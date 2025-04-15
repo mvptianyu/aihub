@@ -2,20 +2,20 @@ package depency
 
 import (
 	"github.com/mvptianyu/aihub"
+	"github.com/mvptianyu/aihub/examples/depency/llms"
 	"github.com/mvptianyu/aihub/examples/depency/middlewares"
-	"github.com/mvptianyu/aihub/examples/depency/providers"
 	"github.com/mvptianyu/aihub/examples/depency/tools"
 )
 
 func Init() {
-	InitProviders()
+	InitLLMs()
 	InitMCPs()
 	InitTools()
 	InitMiddlewares()
 }
 
-func InitProviders() {
-	_, err := aihub.GetProviderHub().SetProviderByYamlData([]byte(providers.OPENAI_GPT_3_5_TURBO))
+func InitLLMs() {
+	_, err := aihub.GetLLMHub().SetLLMByYamlData([]byte(llms.OPENAI_GPT_3_5_TURBO))
 	if err != nil {
 		panic(err)
 	}

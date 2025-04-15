@@ -6,9 +6,44 @@ import (
 	"strings"
 )
 
+// BriefInfo 基础简介
+type BriefInfo struct {
+	Name        string `json:"name" yaml:"name"`               // 名称
+	Description string `json:"description" yaml:"description"` // 描述
+}
+
+// RunState 表示代理的当前状态
+type RunState int
+
+const (
+	StateIdle RunState = iota
+	StateRunning
+	StateSucceed
+	StateFailed
+	StateError
+)
+
+// String 返回代理状态的字符串表示
+func (s RunState) String() string {
+	switch s {
+	case StateIdle:
+		return "idle"
+	case StateRunning:
+		return "running"
+	case StateSucceed:
+		return "succeed"
+	case StateFailed:
+		return "failed"
+	case StateError:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 // AgentConfig agent配置结构
 type AgentConfig struct {
-	Name            string           `json:"name" yaml:"name"` // agent名称
+	BriefInfo       `yaml:",inline"` // yaml解析inline结构
 	AgentRuntimeCfg `yaml:",inline"` // yaml解析inline结构
 
 	Tools       []string               `json:"tools,omitempty" yaml:"tools,omitempty"`               // 用到的工具名
@@ -49,7 +84,7 @@ type AgentRuntimeCfg struct {
 	PresencePenalty  float64 `json:"presence_penalty,omitempty" yaml:"presence_penalty,omitempty"`   // 存在惩罚[-2.0~2.0]，值越大，模型生成的文本中重复出现的词就越少
 	Temperature      float64 `json:"temperature,omitempty" yaml:"temperature,omitempty"`             // 温度[0.0~2.0]，值越大，模型生成的文本灵活性更高
 
-	Provider     string `json:"provider,omitempty" yaml:"provider,omitempty"`           // LLM提供商配置
+	LLM          string `json:"llm,omitempty" yaml:"llm,omitempty"`                     // LLM提供商配置
 	SystemPrompt string `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"` // 系统提示词
 	StopWords    string `json:"stop_words,omitempty" yaml:"stop_words,omitempty"`       // 结束退出词
 	RunTimeout   int64  `json:"run_timeout,omitempty" yaml:"run_timeout,omitempty"`     // 执行超时秒数
@@ -87,25 +122,35 @@ func (cfg *AgentRuntimeCfg) AutoFix() error {
 		cfg.RunTimeout = 60 * 60
 	}
 
-	if cfg.Provider == "" {
+	if cfg.LLM == "" {
 		return ErrConfiguration
 	}
 
 	return nil
 }
 
-// ProviderConfig provider配置结构
-type ProviderConfig struct {
-	Name      string `json:"name" yaml:"name"`
-	Model     string `json:"model" yaml:"model"`
-	BaseURL   string `json:"base_url" yaml:"base_url"`
-	Version   string `json:"version" yaml:"version"`
-	APIKey    string `json:"api_key" yaml:"api_key"`
-	MaxTokens int    `json:"max_tokens" yaml:"max_tokens"` // 模型本身限制的最大token数
-	RateLimit int    `json:"rate_limit" yaml:"rate_limit"`
+type LLMType int
+
+const (
+	LLMType_Base   LLMType = iota // 基础模型，例GPT-3.5-turbo、LLM3.2等
+	LLMType_Reason                // 推理模型，例GPT-4o、Deepseek R1等
+	LLMType_Vision                // 视觉模型，例GPT-4o等
+)
+
+// LLMConfig provider配置结构
+type LLMConfig struct {
+	BriefInfo `yaml:",inline"` // yaml解析inline结构
+
+	ModelType LLMType `json:"model_type" yaml:"model_type"`
+	Provider  string  `json:"provider" yaml:"provider"` // 提供商名称，例如openai
+	BaseURL   string  `json:"base_url" yaml:"base_url"`
+	Version   string  `json:"version" yaml:"version"`
+	APIKey    string  `json:"api_key" yaml:"api_key"`
+	MaxTokens int     `json:"max_tokens" yaml:"max_tokens"` // 模型本身限制的最大token数
+	RateLimit int     `json:"rate_limit" yaml:"rate_limit"`
 }
 
-func (cfg *ProviderConfig) AutoFix() error {
+func (cfg *LLMConfig) AutoFix() error {
 	if cfg.Version == "" {
 		cfg.Version = "v1"
 	}
@@ -121,7 +166,7 @@ func (cfg *ProviderConfig) AutoFix() error {
 		cfg.APIKey = os.Getenv(fmt.Sprintf("%s_API_KEY", strings.ToUpper(cfg.Name)))
 	}
 
-	if cfg.Name == "" || cfg.Model == "" || cfg.APIKey == "" || cfg.BaseURL == "" {
+	if cfg.Name == "" || cfg.Provider == "" || cfg.APIKey == "" || cfg.BaseURL == "" {
 		return ErrConfiguration
 	}
 	return nil

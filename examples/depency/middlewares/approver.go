@@ -31,10 +31,10 @@ func (m *Approver) Name() string {
 }
 
 // BeforeProcessing 提交授权申请
-func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
-	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
+func (m *Approver) BeforeProcessing(ctx context.Context, req *aihub.Message, rsp []*aihub.Message, opts *aihub.RunOptions) error {
+	fmt.Printf("===> BeforeProcessing toolCalls: %v, sessionData: %v\n", req.ToolCalls, opts.SessionData)
 	requestID := ""
-	for _, call := range toolCalls {
+	for _, call := range req.ToolCalls {
 		requestID += "|" + call.Id
 	}
 	requestID = strings.TrimLeft(requestID, "|")
@@ -48,11 +48,11 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.Mess
 
 	go func() {
 		// 发审批请求
-		bs, _ := json.Marshal(toolCalls)
+		bs, _ := json.Marshal(req.ToolCalls)
 		content := strings.Replace(fmt.Sprintf(msgTpl, string(bs)), "'''", "```", -1)
 		fmt.Println(content)
 
-		m.OnProcessing(ctx, toolCalls, opts)
+		m.OnProcessing(ctx, req, rsp, opts)
 	}()
 
 	select {
@@ -68,10 +68,10 @@ func (m *Approver) BeforeProcessing(ctx context.Context, toolCalls []*aihub.Mess
 }
 
 // OnProcessing 提交授权申请
-func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
-	fmt.Printf("===> OnProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
+func (m *Approver) OnProcessing(ctx context.Context, req *aihub.Message, rsp []*aihub.Message, opts *aihub.RunOptions) error {
+	fmt.Printf("===> OnProcessing toolCalls: %v, sessionData: %v\n", req.ToolCalls, opts.SessionData)
 	requestID := ""
-	for _, call := range toolCalls {
+	for _, call := range req.ToolCalls {
 		requestID += "|" + call.Id
 	}
 	requestID = strings.TrimLeft(requestID, "|")
@@ -93,7 +93,7 @@ func (m *Approver) OnProcessing(ctx context.Context, toolCalls []*aihub.MessageT
 }
 
 // AfterProcessing 提交授权申请
-func (m *Approver) AfterProcessing(ctx context.Context, toolCalls []*aihub.MessageToolCall, opts *aihub.RunOptions) error {
-	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", toolCalls, opts.SessionData)
+func (m *Approver) AfterProcessing(ctx context.Context, req *aihub.Message, rsp []*aihub.Message, opts *aihub.RunOptions) error {
+	fmt.Printf("===> AfterProcessing toolCalls: %v, sessionData: %v\n", req.ToolCalls, opts.SessionData)
 	return nil
 }

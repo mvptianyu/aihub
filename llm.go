@@ -106,5 +106,5 @@ func (p *llm) CreateChatCompletionStream(ctx context.Context, request *CreateCha
 		return newStream[CreateChatCompletionRsp](nil, err)
 	}
 
-	return newStream[CreateChatCompletionRsp](newDecoder(rsp), err)
+	return newStream[CreateChatCompletionRsp](newHTTPDecoder(rsp), err)
 }

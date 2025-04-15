@@ -6,39 +6,10 @@ import (
 	"strings"
 )
 
-// BriefInfo 基础简介
+// BriefInfo 公共基础简介
 type BriefInfo struct {
 	Name        string `json:"name" yaml:"name"`               // 名称
 	Description string `json:"description" yaml:"description"` // 描述
-}
-
-// RunState 表示代理的当前状态
-type RunState int
-
-const (
-	StateIdle RunState = iota
-	StateRunning
-	StateSucceed
-	StateFailed
-	StateError
-)
-
-// String 返回代理状态的字符串表示
-func (s RunState) String() string {
-	switch s {
-	case StateIdle:
-		return "idle"
-	case StateRunning:
-		return "running"
-	case StateSucceed:
-		return "succeed"
-	case StateFailed:
-		return "failed"
-	case StateError:
-		return "error"
-	default:
-		return "unknown"
-	}
 }
 
 // AgentConfig agent配置结构

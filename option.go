@@ -40,6 +40,35 @@ const (
 	defaultPromptReplaceAgents  = "{{agents}}"
 )
 
+// RunState 表示当前状态
+type RunState int
+
+const (
+	StateIdle RunState = iota
+	StateRunning
+	StateSucceed
+	StateFailed
+	StateError
+)
+
+// String 返回状态的字符串表示
+func (s RunState) String() string {
+	switch s {
+	case StateIdle:
+		return "idle"
+	case StateRunning:
+		return "running"
+	case StateSucceed:
+		return "succeed"
+	case StateFailed:
+		return "failed"
+	case StateError:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 const prettyCommonTpl = `
 **%s：**
 '''

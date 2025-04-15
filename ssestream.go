@@ -18,7 +18,7 @@ type Decoder interface {
 	Err() error
 }
 
-func newDecoder(res *http.Response) Decoder {
+func newHTTPDecoder(res *http.Response) Decoder {
 	if res == nil || res.Body == nil {
 		return nil
 	}
@@ -28,9 +28,17 @@ func newDecoder(res *http.Response) Decoder {
 	if t, ok := decoderTypes[contentType]; ok {
 		decoder = t(res.Body)
 	} else {
-		scanner := bufio.NewScanner(res.Body)
-		decoder = &eventStreamDecoder{rc: res.Body, scn: scanner}
+		decoder = newDecoder(res.Body)
 	}
+	return decoder
+}
+
+func newDecoder(reader io.ReadCloser) Decoder {
+	if reader == nil {
+		return nil
+	}
+	scanner := bufio.NewScanner(reader)
+	decoder := &eventStreamDecoder{rc: reader, scn: scanner}
 	return decoder
 }
 

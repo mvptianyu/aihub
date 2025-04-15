@@ -236,17 +236,28 @@ func (opts *RunOptions) RenderFinalAnswer() string {
 			// output += fmt.Sprintf(prettyCommonTpl, "用户问题🤔", step.Question)
 		case StepType_End:
 			if HasMarkdownSyntax(step.Result) {
-				output += "**最终结果📤:**\n" + step.Result
+				output += "**最终结果📤:**\n" + strings.Trim(step.Result, "\n")
 			} else {
 				// 最终结果无格式输出才替换
-				output += fmt.Sprintf(prettyCommonTpl, "最终结果📤", step.Result)
+				output += fmt.Sprintf(prettyCommonTpl, "最终结果📤", strings.Trim(step.Result, "\n"))
 			}
 		default:
 			if opts.RuntimeCfg.Debug {
 				if step.Think != "" {
-					output += fmt.Sprintf(prettyStepHasThinkTpl, idx, step.Think, step.StepType.String(), step.Action, step.Question, step.Result)
+					output += fmt.Sprintf(prettyStepHasThinkTpl, idx,
+						strings.Trim(step.Think, "\n"),
+						step.StepType.String(),
+						strings.Trim(step.Action, "\n"),
+						strings.Trim(step.Question, "\n"),
+						strings.Trim(step.Result, "\n"),
+					)
 				} else {
-					output += fmt.Sprintf(prettyStepTpl, idx, step.StepType.String(), step.Action, step.Question, step.Result)
+					output += fmt.Sprintf(prettyStepTpl, idx,
+						step.StepType.String(),
+						strings.Trim(step.Action, "\n"),
+						strings.Trim(step.Question, "\n"),
+						strings.Trim(step.Result, "\n"),
+					)
 				}
 			}
 		}
@@ -254,7 +265,7 @@ func (opts *RunOptions) RenderFinalAnswer() string {
 	}
 
 	if opts.RuntimeCfg.Claim != "" && output != "" {
-		output += fmt.Sprintf(prettyClaimTpl, opts.RuntimeCfg.Claim)
+		output += fmt.Sprintf(prettyClaimTpl, strings.Trim(opts.RuntimeCfg.Claim, "\n"))
 	}
 
 	return strings.TrimLeft(strings.Replace(output, "'''", "```", -1), "\n")

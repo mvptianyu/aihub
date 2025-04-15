@@ -134,7 +134,7 @@ func (cfg *LLMConfig) AutoFix() error {
 
 	if cfg.APIKey == "" {
 		// 取环境变量值
-		cfg.APIKey = os.Getenv(fmt.Sprintf("%s_API_KEY", strings.ToUpper(cfg.Name)))
+		cfg.APIKey = os.Getenv(fmt.Sprintf("%s_API_KEY", strings.ToUpper(cfg.Provider)))
 	}
 
 	if cfg.Name == "" || cfg.Provider == "" || cfg.APIKey == "" || cfg.BaseURL == "" {

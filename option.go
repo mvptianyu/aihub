@@ -142,9 +142,7 @@ const prettyStepHasThinkTpl = `
 %s => %s(%s)
 '''
 - **结果✅：** 
-'''
 %s
-'''
 `
 
 const prettyStepTpl = `
@@ -154,9 +152,7 @@ const prettyStepTpl = `
 %s => %s(%s)
 '''
 - **结果✅：** 
-'''
 %s
-'''
 `
 
 const prettyClaimTpl = `
@@ -243,20 +239,25 @@ func (opts *RunOptions) RenderFinalAnswer() string {
 			}
 		default:
 			if opts.RuntimeCfg.Debug {
+				result := strings.Trim(step.Result, "\n")
+				if !HasMarkdownSyntax(result) {
+					result = fmt.Sprintf("'''\n%s\n'''", result)
+				}
+
 				if step.Think != "" {
 					output += fmt.Sprintf(prettyStepHasThinkTpl, idx,
 						strings.Trim(step.Think, "\n"),
 						step.StepType.String(),
 						strings.Trim(step.Action, "\n"),
 						strings.Trim(step.Question, "\n"),
-						strings.Trim(step.Result, "\n"),
+						result,
 					)
 				} else {
 					output += fmt.Sprintf(prettyStepTpl, idx,
 						step.StepType.String(),
 						strings.Trim(step.Action, "\n"),
 						strings.Trim(step.Question, "\n"),
-						strings.Trim(step.Result, "\n"),
+						result,
 					)
 				}
 			}

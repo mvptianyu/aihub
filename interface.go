@@ -24,7 +24,7 @@ type IAgent interface {
 	IBriefInfo
 
 	// Run 执行Agent请求
-	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, ISession, error)
+	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
 	// RunStream 执行Agent请求，支持流式返回（Todo）
 	RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error)
 	// ResetMemory 重置会话记忆

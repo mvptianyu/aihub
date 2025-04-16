@@ -1,6 +1,7 @@
 package aihub
 
 import (
+	"context"
 	"gopkg.in/yaml.v3"
 	"log"
 	"regexp"
@@ -60,4 +61,19 @@ func YamlDataToAgentConfig(yamlData []byte) (*AgentConfig, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+const ContextAIHubRunOptionKey = "_AIHUB_RUN_OPTION_"
+
+func RunOptionFromContext(ctx context.Context) *RunOptions {
+	if tmp := ctx.Value(ContextAIHubRunOptionKey); tmp != nil {
+		if tmp2, ok2 := tmp.(*RunOptions); ok2 {
+			return tmp2
+		}
+	}
+	return nil
+}
+
+func ContextWithRunOption(ctx context.Context, opts *RunOptions) context.Context {
+	return context.WithValue(ctx, ContextAIHubRunOptionKey, opts)
 }

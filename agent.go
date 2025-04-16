@@ -55,10 +55,10 @@ func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 	return nil
 }
 
-func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, ISession, error) {
-	providerIns := GetLLMHub().GetLLM(a.cfg.LLM)
-	if providerIns == nil {
-		return nil, "", nil, ErrConfiguration
+func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
+	LLMIns := GetLLMHub().GetLLM(a.cfg.LLM)
+	if LLMIns == nil {
+		return nil, "", ErrConfiguration
 	}
 
 	options := a.newRunOptions()
@@ -66,6 +66,7 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 		opt(options)
 	}
 
+	ctx = ContextWithRunOption(ctx, options) // 绑定重设ctx
 	newCtx, cancel := context.WithTimeout(ctx, time.Duration(options.RuntimeCfg.RunTimeout)*time.Second)
 	defer cancel()
 
@@ -119,7 +120,7 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 				req.Stop = options.RuntimeCfg.StopWords
 			}
 
-			rsp, err1 := providerIns.CreateChatCompletion(newCtx, req)
+			rsp, err1 := LLMIns.CreateChatCompletion(newCtx, req)
 			if err1 != nil {
 				err = err1
 				return
@@ -162,7 +163,7 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	options.AddStep(endStep)
 	content = options.RenderFinalAnswer()
 
-	return ret, content, options.Session, err
+	return ret, content, err
 }
 
 func (a *agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error) {

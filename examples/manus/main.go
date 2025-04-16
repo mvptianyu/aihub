@@ -14,7 +14,9 @@ func main() {
 	aihub.GetAgentHub().SetAgentByYamlFile("weather.yaml")
 	aihub.GetAgentHub().SetAgentByYamlFile("song.yaml")
 
-	_, txt, _, err := aihub.GetManus().Run(ctx, "深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名",
+	input := "深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名"
+	// input := "你能干吗？"
+	_, txt, _, err := aihub.GetManus().Run(ctx, input,
 		aihub.WithAgents([]string{"weather", "song"}),
 		// aihub.WithSystemPrompt(""),
 	)

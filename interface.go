@@ -3,6 +3,7 @@ package aihub
 import (
 	"context"
 	"github.com/mark3labs/mcp-go/client"
+	"github.com/mvptianyu/aihub/ssestream"
 )
 
 type IBriefInfo interface {
@@ -16,7 +17,7 @@ type ILLM interface {
 	// CreateChatCompletion 创建Chat
 	CreateChatCompletion(ctx context.Context, request *CreateChatCompletionReq) (response *CreateChatCompletionRsp, err error)
 	// CreateChatCompletionStream 创建Chat以及stream返回
-	CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *Stream[CreateChatCompletionRsp])
+	CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *ssestream.StreamReader[CreateChatCompletionRsp])
 }
 
 // IAgent 智能体
@@ -24,9 +25,9 @@ type IAgent interface {
 	IBriefInfo
 
 	// Run 执行Agent请求
-	Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error)
-	// RunStream 执行Agent请求，支持流式返回（Todo）
-	RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error)
+	Run(ctx context.Context, input string, opts ...RunOptionFunc) *Response
+	// RunStream 执行Agent请求，支持流式返回
+	RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (stream *ssestream.StreamReader[Response])
 	// ResetMemory 重置会话记忆
 	ResetMemory(ctx context.Context, opts ...RunOptionFunc) error
 	// GetToolFunctions 获取工具配置

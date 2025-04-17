@@ -63,17 +63,17 @@ func YamlDataToAgentConfig(yamlData []byte) (*AgentConfig, error) {
 	return cfg, nil
 }
 
-const ContextAIHubRunOptionKey = "_AIHUB_RUN_OPTION_"
+const ContextAIHubSessionKey = "_AIHUB_SESSION_"
 
-func RunOptionFromContext(ctx context.Context) *RunOptions {
-	if tmp := ctx.Value(ContextAIHubRunOptionKey); tmp != nil {
-		if tmp2, ok2 := tmp.(*RunOptions); ok2 {
+func SessionFromContext(ctx context.Context) *Session {
+	if tmp := ctx.Value(ContextAIHubSessionKey); tmp != nil {
+		if tmp2, ok2 := tmp.(*Session); ok2 {
 			return tmp2
 		}
 	}
 	return nil
 }
 
-func ContextWithRunOption(ctx context.Context, opts *RunOptions) context.Context {
-	return context.WithValue(ctx, ContextAIHubRunOptionKey, opts)
+func ContextWithSession(ctx context.Context, session *Session) context.Context {
+	return context.WithValue(ctx, ContextAIHubSessionKey, session)
 }

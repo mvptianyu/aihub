@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mvptianyu/aihub/ssestream"
+	"io"
 	"sync"
 	"time"
 )
@@ -55,10 +57,12 @@ func (a *agent) ResetMemory(ctx context.Context, opts ...RunOptionFunc) error {
 	return nil
 }
 
-func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*Message, string, error) {
+func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (ret *Response) {
+	ret = &Response{}
 	LLMIns := GetLLMHub().GetLLM(a.cfg.LLM)
 	if LLMIns == nil {
-		return nil, "", ErrConfiguration
+		ret.Err = ErrConfiguration
+		return
 	}
 
 	options := a.newRunOptions()
@@ -66,7 +70,8 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 		opt(options)
 	}
 
-	ctx = ContextWithRunOption(ctx, options) // 绑定重设ctx
+	ret.Session = options.Session
+	ctx = ContextWithSession(ctx, options.Session) // 绑定重设ctx
 	newCtx, cancel := context.WithTimeout(ctx, time.Duration(options.RuntimeCfg.RunTimeout)*time.Second)
 	defer cancel()
 
@@ -76,9 +81,6 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 	}
 	a.memory.Push(options, userMsg)
 
-	var ret *Message
-	var content = ""
-	var err error
 	var doneCh = make(chan bool)
 	var endStep = &RunStep{
 		StepType: StepType_End,
@@ -98,7 +100,7 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 		for {
 			// 超过最大步数跳出
 			if options.CheckStepQuit() {
-				err = ErrChatCompletionOverMaxStep
+				ret.Err = ErrChatCompletionOverMaxStep
 				return
 			}
 
@@ -122,12 +124,12 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 
 			rsp, err1 := LLMIns.CreateChatCompletion(newCtx, req)
 			if err1 != nil {
-				err = err1
+				ret.Err = err1
 				return
 			}
 
 			if rsp.Error != nil {
-				err = errors.New(rsp.Error.Message)
+				ret.Err = errors.New(rsp.Error.Message)
 				return
 			}
 
@@ -139,12 +141,12 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 				// 处理tool调用
 				toolMsgs, err1 := a.processToolCalls(newCtx, choice.Message, options)
 				if err1 != nil {
-					err = err1
+					ret.Err = err1
 					return
 				}
 				a.memory.Push(options, toolMsgs...)
 			default:
-				ret = choice.Message
+				ret.Message = choice.Message
 				endStep.Result = choice.Message.Content
 				return
 			}
@@ -153,22 +155,51 @@ func (a *agent) Run(ctx context.Context, input string, opts ...RunOptionFunc) (*
 
 	select {
 	case <-newCtx.Done():
-		err = ErrAgentRunTimeout
+		ret.Err = ErrAgentRunTimeout
 	case <-doneCh:
 	}
 
-	if err != nil {
+	if ret.Err != nil {
 		endStep.State = RunState_Failed
 	}
 	options.AddStep(endStep)
-	content = options.RenderFinalAnswer()
-
-	return ret, content, err
+	ret.Content = options.RenderFinalAnswer()
+	return ret
 }
 
-func (a *agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (<-chan Message, <-chan string, <-chan error) {
-	// TODO implement me
-	panic("implement me")
+func (a *agent) RunStream(ctx context.Context, input string, opts ...RunOptionFunc) (stream *ssestream.StreamReader[Response]) {
+	var err error
+	r, w := io.Pipe()
+	writer := ssestream.NewStreamWriter[Response](ssestream.NewEncoder(w), ctx)
+	stream = ssestream.NewStreamReader[Response](ssestream.NewDecoder(r), err)
+
+	go func() {
+		rsp := a.Run(ctx, input, opts...)
+		if rsp.Err != nil {
+			writer.Append(&Response{
+				Err: rsp.Err,
+			})
+			time.Sleep(30 * time.Millisecond)
+			writer.Close()
+			return
+		}
+
+		// 成功
+		runes := []rune(rsp.Content)
+		length := len(runes)
+		for i := 0; i < length; i += 4 {
+			end := i + 4
+			if end > length {
+				end = length
+			}
+			block := &Response{}
+			block.Content = string(runes[i:end])
+			writer.Append(block)
+			time.Sleep(25 * time.Millisecond)
+		}
+		writer.Close()
+	}()
+	return
 }
 
 func (a *agent) GetToolFunctions() []ToolFunction {

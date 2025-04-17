@@ -77,13 +77,13 @@ func main() {
 		return
 	}
 
-	_, txt, err := myAgent.Run(
+	rsp := myAgent.Run(
 		ctx,
 		"查询播放核心归档最近5天12401场景在id地区的总播放量和平均播放成功率，按日期、场景、地区分组和升序排序",
 		aihub.WithDebug(true),
 		aihub.WithContext(wiki),
 	)
-	fmt.Println(err)
+	fmt.Println(rsp.Err)
 	fmt.Println("=======================")
-	fmt.Println(txt)
+	fmt.Println(rsp.Content)
 }

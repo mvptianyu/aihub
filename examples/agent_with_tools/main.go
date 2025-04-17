@@ -10,7 +10,6 @@ import (
 func main() {
 	depency.Init() // 初始化
 
-	ctx := context.Background()
 	// Create a new agent
 	myAgent, err := aihub.GetAgentHub().SetAgentByYamlFile("demo.yaml")
 	if err != nil {
@@ -18,17 +17,36 @@ func main() {
 		return
 	}
 
-	_, txt, err := myAgent.Run(
-		ctx,
+	// run(myAgent)
+	runStream(myAgent)
+}
+
+func run(myAgent aihub.IAgent) {
+	rsp := myAgent.Run(
+		context.Background(),
 		"深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名",
-		aihub.WithContext("城市参数中随机50%拼接“中国”字符串"),
 		aihub.WithDebug(true),
-		aihub.WithSessionID(""),
-		aihub.WithSessionData(map[string]interface{}{
-			"thread_id": "u7oirumAclCZMhQB-RBXX8ubvXNAhNTyzXN4gMD2QqIClneqgHpir2gz",
-		}),
 	)
-	fmt.Println(err)
+
+	fmt.Println(rsp.Err)
 	fmt.Println("=======================")
-	fmt.Println(txt)
+	fmt.Println(rsp.Content)
+}
+
+func runStream(myAgent aihub.IAgent) {
+	rsp := myAgent.RunStream(
+		context.Background(),
+		"深圳、香港、北京今天天气如何呢，并且根据各城市天气情况推荐一首匹配的歌名",
+		aihub.WithDebug(true),
+	)
+
+	for rsp.Next() {
+		data := rsp.Current()
+		if data.Err != nil {
+			fmt.Println(data.Err)
+		}
+		fmt.Printf(data.Content)
+	}
+	fmt.Println(rsp.Err())
+	fmt.Println("\n======[Done]=======")
 }

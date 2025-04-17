@@ -84,27 +84,26 @@ func AgentCall(ctx context.Context, input *AgentCallReq, output *Message) (err e
 		return ErrCallNameNotMatch
 	}
 
-	options := RunOptionFromContext(ctx)
+	session := SessionFromContext(ctx)
 	optionFuncs := []RunOptionFunc{
 		WithDebug(false),
 	}
-	if options != nil {
-		optionFuncs = append(optionFuncs, WithSessionID(options.GetSessionID()))
-		optionFuncs = append(optionFuncs, WithSessionData(options.GetAllSessionData()))
+	if session != nil {
+		optionFuncs = append(optionFuncs, WithSessionData(session.GetAllSessionData()))
 	}
 
 	// 调用执行
-	tmp, _, err1 := ag.Run(ctx, input.Question,
+	rsp := ag.Run(ctx, input.Question,
 		optionFuncs...,
 	)
-	if err1 != nil {
-		output.Content = err1.Error()
-		err = err1
+	if rsp.Err != nil {
+		output.Content = rsp.Err.Error()
+		err = rsp.Err
 		return
 	}
 
-	if tmp != nil {
-		output.Content = tmp.Content
+	if rsp.Message != nil {
+		output.Content = rsp.Message.Content
 	}
 
 	if output.Content == "" {

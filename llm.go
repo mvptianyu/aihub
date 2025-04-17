@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mvptianyu/aihub/ssestream"
 	"golang.org/x/time/rate"
 	"io"
 	"net/http"
@@ -81,7 +82,7 @@ func (p *llm) CreateChatCompletion(ctx context.Context, request *CreateChatCompl
 	return
 }
 
-func (p *llm) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *Stream[CreateChatCompletionRsp]) {
+func (p *llm) CreateChatCompletionStream(ctx context.Context, request *CreateChatCompletionReq) (stream *ssestream.StreamReader[CreateChatCompletionRsp]) {
 	if request.Stream == false {
 		request.Stream = true
 	}
@@ -90,7 +91,7 @@ func (p *llm) CreateChatCompletionStream(ctx context.Context, request *CreateCha
 	}
 
 	if err := p.checkRateLimit(); err != nil {
-		return newStream[CreateChatCompletionRsp](nil, err)
+		return ssestream.NewStreamReader[CreateChatCompletionRsp](nil, err)
 	}
 
 	surl, _ := url.JoinPath(p.cfg.BaseURL, p.cfg.Version, chatCompletionsAPI)
@@ -103,8 +104,8 @@ func (p *llm) CreateChatCompletionStream(ctx context.Context, request *CreateCha
 
 	rsp, err := HTTPCall(surl, http.MethodPost, request, headers, HTTPWithTimeOut(60))
 	if err != nil {
-		return newStream[CreateChatCompletionRsp](nil, err)
+		return ssestream.NewStreamReader[CreateChatCompletionRsp](nil, err)
 	}
 
-	return newStream[CreateChatCompletionRsp](newHTTPDecoder(rsp), err)
+	return ssestream.NewStreamReader[CreateChatCompletionRsp](ssestream.NewDecoder(rsp.Body), err)
 }

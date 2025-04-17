@@ -1,4 +1,4 @@
-package aihub
+package ssestream
 
 import (
 	"bufio"
@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"io"
-	"net/http"
 	"strings"
 )
 
@@ -18,34 +17,13 @@ type Decoder interface {
 	Err() error
 }
 
-func newHTTPDecoder(res *http.Response) Decoder {
-	if res == nil || res.Body == nil {
-		return nil
-	}
-
-	var decoder Decoder
-	contentType := res.Header.Get("content-type")
-	if t, ok := decoderTypes[contentType]; ok {
-		decoder = t(res.Body)
-	} else {
-		decoder = newDecoder(res.Body)
-	}
-	return decoder
-}
-
-func newDecoder(reader io.ReadCloser) Decoder {
+func NewDecoder(reader io.ReadCloser) Decoder {
 	if reader == nil {
 		return nil
 	}
 	scanner := bufio.NewScanner(reader)
 	decoder := &eventStreamDecoder{rc: reader, scn: scanner}
 	return decoder
-}
-
-var decoderTypes = map[string](func(io.ReadCloser) Decoder){}
-
-func registerDecoder(contentType string, decoder func(io.ReadCloser) Decoder) {
-	decoderTypes[strings.ToLower(contentType)] = decoder
 }
 
 type Event struct {
@@ -126,23 +104,23 @@ func (s *eventStreamDecoder) Err() error {
 	return s.err
 }
 
-type Stream[T any] struct {
+type StreamReader[T any] struct {
 	decoder Decoder
 	cur     T
 	err     error
 	done    bool
 }
 
-func newStream[T any](decoder Decoder, err error) *Stream[T] {
-	return &Stream[T]{
+func NewStreamReader[T any](decoder Decoder, err error) *StreamReader[T] {
+	return &StreamReader[T]{
 		decoder: decoder,
 		err:     err,
 	}
 }
 
 // Next returns false if the stream has ended or an error occurred.
-// Call Stream.Current() to get the current value.
-// Call Stream.Err() to get the error.
+// Call StreamReader.Current() to get the current value.
+// Call StreamReader.Err() to get the error.
 //
 //		for stream.Next() {
 //			data := stream.Current()
@@ -151,7 +129,7 @@ func newStream[T any](decoder Decoder, err error) *Stream[T] {
 //	 	if stream.Err() != nil {
 //			...
 //	 	}
-func (s *Stream[T]) Next() bool {
+func (s *StreamReader[T]) Next() bool {
 	if s.err != nil {
 		return false
 	}
@@ -200,15 +178,15 @@ func (s *Stream[T]) Next() bool {
 	return false
 }
 
-func (s *Stream[T]) Current() T {
+func (s *StreamReader[T]) Current() T {
 	return s.cur
 }
 
-func (s *Stream[T]) Err() error {
+func (s *StreamReader[T]) Err() error {
 	return s.err
 }
 
-func (s *Stream[T]) Close() error {
+func (s *StreamReader[T]) Close() error {
 	if s.decoder == nil {
 		// already closed
 		return nil

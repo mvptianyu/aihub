@@ -3,6 +3,8 @@ package aihub
 import (
 	"context"
 	"encoding/json"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/mvptianyu/aihub/jsonschema"
 	"github.com/tidwall/gjson"
 	"log"
@@ -27,7 +29,8 @@ type ToolEntry struct {
 type toolHub struct {
 	toolEntrys map[string]ToolEntry // toolFunc Name => toolFunc
 
-	lock sync.RWMutex
+	mcpSrv IMCPServer
+	lock   sync.RWMutex
 }
 
 func (h *toolHub) GetAllNameList() []string {
@@ -138,6 +141,7 @@ func (h *toolHub) SetTool(objs ...ToolEntry) error {
 		}
 
 		h.toolEntrys[fixName] = obj
+		h.addMCPServerTool(obj) // 加入MCPServer
 	}
 	return nil
 }
@@ -148,6 +152,7 @@ func (h *toolHub) DelTool(names ...string) error {
 	for _, name := range names {
 		delete(h.toolEntrys, name)
 	}
+	h.delMCPServerTool(names...)
 	return nil
 }
 
@@ -205,4 +210,50 @@ func (h *toolHub) ConvertToOPENAPIConfig() string {
 	cfg.AddToolFunction(toolFunctions, "")
 	bs, _ := json.Marshal(cfg)
 	return string(bs)
+}
+
+func (h *toolHub) addMCPServerTool(entry ToolEntry) {
+	if h.mcpSrv == nil {
+		return
+	}
+
+	tmpBS, _ := json.Marshal(entry.toolFunction.Parameters)
+	inputSchema := mcp.ToolInputSchema{}
+	json.Unmarshal(tmpBS, &inputSchema)
+	tool := server.ServerTool{
+		Tool: mcp.Tool{
+			Name:        entry.toolFunction.Name,
+			Description: entry.toolFunction.Description,
+			InputSchema: inputSchema,
+		},
+		Handler: func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			rsp := &mcp.CallToolResult{
+				Content: make([]mcp.Content, 0),
+				IsError: true,
+			}
+			innerReqBS, _ := json.Marshal(request.Params.Arguments)
+			innerRsp := &Message{}
+
+			err := h.ProxyCall(ctx, request.Params.Name, string(innerReqBS), innerRsp)
+			if err == nil {
+				rsp.Content = append(rsp.Content, mcp.NewTextContent(innerRsp.Content))
+				rsp.IsError = false
+			}
+
+			return rsp, err
+		},
+	}
+	h.mcpSrv.AddTools(tool)
+}
+
+func (h *toolHub) delMCPServerTool(names ...string) {
+	if h.mcpSrv == nil {
+		return
+	}
+
+	h.mcpSrv.DelTools(names...)
+}
+
+func (a *toolHub) GetMCPServer() IMCPServer {
+	return a.mcpSrv
 }

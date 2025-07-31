@@ -1,6 +1,10 @@
 package aihub
 
 import (
+	"context"
+	"fmt"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,7 +14,8 @@ import (
 type agentHub struct {
 	agents map[string]IAgent // agent Name => ILLM
 
-	lock sync.RWMutex
+	mcpSrv IMCPServer
+	lock   sync.RWMutex
 }
 
 func (h *agentHub) GetAllNameList() []string {
@@ -50,6 +55,7 @@ func (h *agentHub) DelAgent(name string) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	delete(h.agents, name)
+	h.delMCPServerTool(name)
 	return nil
 }
 
@@ -62,6 +68,7 @@ func (h *agentHub) SetAgent(cfg *AgentConfig) (IAgent, error) {
 		return nil, err
 	}
 	h.agents[cfg.Name] = ag
+	h.addMCPServerTool(ag) // 加入MCPServer
 	return ag, err
 }
 
@@ -81,4 +88,64 @@ func (h *agentHub) SetAgentByYamlFile(yamlFile string) (IAgent, error) {
 		return nil, err
 	}
 	return h.SetAgentByYamlData(yamlData)
+}
+
+func (h *agentHub) addMCPServerTool(item IAgent) {
+	if h.mcpSrv == nil {
+		return
+	}
+
+	briefInfo := item.GetBriefInfo()
+	tool := server.ServerTool{
+		Tool: mcp.Tool{
+			Name:        briefInfo.Name,
+			Description: briefInfo.Description,
+			InputSchema: mcp.ToolInputSchema{
+				Type: "object",
+				Properties: map[string]interface{}{
+					ToolArgumentsRawInputKey: map[string]interface{}{
+						"type":        "string",
+						"description": "原封不动传递的用户提问语句",
+					},
+				},
+				Required: []string{
+					ToolArgumentsRawInputKey,
+				},
+			},
+		},
+		Handler: func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			rsp := &mcp.CallToolResult{
+				Content: make([]mcp.Content, 0),
+				IsError: true,
+			}
+			innerInput := ""
+			if tmpStr, ok := request.Params.Arguments[ToolArgumentsRawInputKey]; ok {
+				innerInput, _ = tmpStr.(string)
+			}
+			if innerInput == "" {
+				return rsp, fmt.Errorf("empty param: _INPUT_")
+			}
+
+			innerRsp := item.Run(ctx, innerInput)
+			if innerRsp.Err == nil {
+				rsp.Content = append(rsp.Content, mcp.NewTextContent(innerRsp.Content))
+				rsp.IsError = false
+			}
+
+			return rsp, innerRsp.Err
+		},
+	}
+	h.mcpSrv.AddTools(tool)
+}
+
+func (h *agentHub) delMCPServerTool(name string) {
+	if h.mcpSrv == nil {
+		return
+	}
+
+	h.mcpSrv.DelTools(name)
+}
+
+func (a *agentHub) GetMCPServer() IMCPServer {
+	return a.mcpSrv
 }

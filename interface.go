@@ -3,7 +3,9 @@ package aihub
 import (
 	"context"
 	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/mvptianyu/aihub/ssestream"
+	"net/http"
 )
 
 type IBriefInfo interface {
@@ -66,6 +68,17 @@ type IMiddleware interface {
 	AfterProcessing(ctx context.Context, req *Message, rsp []*Message, opts *RunOptions) error
 }
 
+// IMCPServer MCP服务定义
+type IMCPServer interface {
+	Start(listenAddr string) error
+	Shutdown(ctx context.Context) error
+	GetSSEPath() string
+	GetMessagePath() string
+	AddTools(tools ...server.ServerTool)
+	DelTools(names ...string)
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
+}
+
 // ========HUB定义============
 
 type IMiddlewareHub interface {
@@ -83,6 +96,7 @@ type IToolHub interface {
 	SetTool(objs ...ToolEntry) error
 	ProxyCall(ctx context.Context, name string, input string, output *Message) (err error)
 	ConvertToOPENAPIConfig() string
+	GetMCPServer() IMCPServer
 }
 
 type IMCPHub interface {
@@ -103,6 +117,7 @@ type ILLMHub interface {
 	SetLLM(cfg *LLMConfig) (ILLM, error)
 	SetLLMByYamlData(yamlData []byte) (ILLM, error)
 	SetLLMByYamlFile(yamlFile string) (ILLM, error)
+	GetMCPServer() IMCPServer
 }
 
 type IAgentHub interface {
@@ -113,4 +128,5 @@ type IAgentHub interface {
 	SetAgent(cfg *AgentConfig) (IAgent, error)
 	SetAgentByYamlData(yamlData []byte) (IAgent, error)
 	SetAgentByYamlFile(yamlFile string) (IAgent, error)
+	GetMCPServer() IMCPServer
 }

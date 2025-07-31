@@ -12,6 +12,7 @@ func GetAgentHub() IAgentHub {
 	defaultAgentHubOnce.Do(func() {
 		defaultAgentHub = &agentHub{
 			agents: make(map[string]IAgent),
+			mcpSrv: newMCPServer("agent"),
 		}
 	})
 	return defaultAgentHub
@@ -24,7 +25,8 @@ var defaultLLMHubOnce sync.Once
 func GetLLMHub() ILLMHub {
 	defaultLLMHubOnce.Do(func() {
 		defaultLLMHub = &llmHub{
-			llms: make(map[string]ILLM),
+			llms:   make(map[string]ILLM),
+			mcpSrv: newMCPServer("llm"),
 		}
 	})
 	return defaultLLMHub
@@ -52,6 +54,7 @@ func GetToolHub() IToolHub {
 	defaultToolHubOnce.Do(func() {
 		defaultToolHub = &toolHub{
 			toolEntrys: make(map[string]ToolEntry),
+			mcpSrv:     newMCPServer("tool"),
 		}
 	})
 	return defaultToolHub

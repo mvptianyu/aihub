@@ -14,8 +14,7 @@ type agent struct {
 	cfg           *AgentConfig
 	memory        IMemory
 	toolFunctions []ToolFunction
-
-	lock sync.RWMutex
+	lock          sync.RWMutex
 }
 
 func newAgent(cfg *AgentConfig) (IAgent, error) {

@@ -63,7 +63,7 @@ func YamlDataToAgentConfig(yamlData []byte) (*AgentConfig, error) {
 	return cfg, nil
 }
 
-const ContextAIHubSessionKey = "_AIHUB_SESSION_"
+const ContextAIHubSessionKey = "AIHUB_SESSION"
 
 func SessionFromContext(ctx context.Context) *Session {
 	if tmp := ctx.Value(ContextAIHubSessionKey); tmp != nil {

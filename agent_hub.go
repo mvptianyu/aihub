@@ -123,7 +123,7 @@ func (h *agentHub) addMCPServerTool(item IAgent) {
 				innerInput, _ = tmpStr.(string)
 			}
 			if innerInput == "" {
-				return rsp, fmt.Errorf("empty param: _INPUT_")
+				return rsp, fmt.Errorf("empty param: INPUT_")
 			}
 
 			innerRsp := item.Run(ctx, innerInput)

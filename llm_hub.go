@@ -126,7 +126,7 @@ func (h *llmHub) addMCPServerTool(item ILLM) {
 				innerInput, _ = tmpStr.(string)
 			}
 			if innerInput == "" {
-				return rsp, fmt.Errorf("empty param: _INPUT_")
+				return rsp, fmt.Errorf("empty param: INPUT_")
 			}
 
 			innerReq := &CreateChatCompletionReq{

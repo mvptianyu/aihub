@@ -86,7 +86,6 @@ func (m *mcpClient) updateTools() bool {
 			Type:        jsonschema.String,
 			Description: "可选，声明工具运行结果写入到session数据的key名",
 		}
-		toolFunction.Parameters.Required = append(toolFunction.Parameters.Required, ToolArgumentsRawSessionKey)
 		m.toolFuncMaps[toolFunction.Name] = toolFunction
 	}
 	return true

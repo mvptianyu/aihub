@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	ToolArgumentsRawInputKey   = "_INPUT_"
-	ToolArgumentsRawSessionKey = "_SESSION_"
+	ToolArgumentsRawInputKey   = "INPUT_"
+	ToolArgumentsRawSessionKey = "SESSION_"
 )
 
 const (
@@ -34,7 +34,7 @@ type IToolInput interface {
 
 type ToolInputBase struct {
 	input   string `json:"-"`
-	Session string `json:"_SESSION_" description:"记录session的key名,默认为空,无需设置" required:"true"`
+	Session string `json:"SESSION_" description:"记录session的key名,默认为空,无需设置" required:"false"`
 }
 
 func (t *ToolInputBase) GetRawInput() string {

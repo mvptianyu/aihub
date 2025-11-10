@@ -104,8 +104,21 @@ func reflectSchema(t reflect.Type) (*Definition, error) {
 			return nil, err
 		}
 		d = *definition
+	case reflect.Map:
+		// JSON 仅支持字符串作为键，因此校验 Map 键类型
+		if t.Key().Kind() != reflect.String {
+			return nil, fmt.Errorf("unsupported map key type: %s (must be string)", t.Key().Kind())
+		}
+		d.Type = Object
+		// 解析 Map 值的类型，作为 additionalProperties
+		valueDef, err := reflectSchema(t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		d.AdditionalProperties = valueDef // 所有值需符合该定义
+		d.Properties = nil                // Map 无固定 properties，留空
 	case reflect.Invalid, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
-		reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
+		reflect.Chan, reflect.Func, reflect.Interface,
 		reflect.UnsafePointer:
 		return nil, fmt.Errorf("unsupported type: %s", t.Kind().String())
 	default:

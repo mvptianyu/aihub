@@ -17,6 +17,12 @@ func main() {
 		return
 	}
 
+	/*
+		toolMCPServer := aihub.GetToolHub().GetMCPServer()
+		http.HandleFunc(toolMCPServer.GetMessagePath(), toolMCPServer.ServeHTTP)
+		http.ListenAndServe(":8000", nil)
+	*/
+
 	// run(myAgent)
 	runStream(myAgent)
 }
